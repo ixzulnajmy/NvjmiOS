@@ -57,7 +57,7 @@ export async function TodaySpending({ userId }: TodaySpendingProps) {
 
         {Object.keys(byCategory).length > 0 && (
           <div className="space-y-1 pt-2 border-t">
-            {Object.entries(byCategory).map(([category, amount]) => (
+            {Object.entries(byCategory).map(([category, amount]: [string, number]) => (
               <div key={category} className="flex justify-between text-sm">
                 <span className="text-muted-foreground capitalize">{category}</span>
                 <span className="font-medium">{formatCurrency(amount)}</span>
