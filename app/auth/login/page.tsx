@@ -29,23 +29,34 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
+    console.log('🔐 Login attempt started');
+    console.log('Email:', data.email);
+
     try {
+      console.log('Creating Supabase client...');
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      console.log('Supabase client created successfully');
+
+      console.log('Attempting to sign in with password...');
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
       if (authError) {
+        console.error('❌ Authentication error:', authError);
         setError(authError.message);
         setIsLoading(false);
         return;
       }
 
+      console.log('✅ Login successful!', authData);
       router.push('/dashboard');
       router.refresh();
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('❌ Unexpected error during login:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
