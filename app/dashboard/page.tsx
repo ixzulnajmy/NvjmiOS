@@ -28,10 +28,10 @@ export default async function DashboardPage() {
       {/* Debt Summary */}
       <DebtSummary userId={user.id} />
 
-      {/* Today's Prayer Status */}
+      {/* Prayer Status for Today */}
       <PrayerStatus userId={user.id} />
 
-      {/* Today's Spending */}
+      {/* Spending for Today */}
       <TodaySpending userId={user.id} />
 
       {/* Quick Actions */}
