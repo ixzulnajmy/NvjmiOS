@@ -7,12 +7,24 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'NvjmiOS',
+    startupImage: [
+      {
+        url: '/icon-512x512.png',
+        media: '(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)',
+      },
+    ],
   },
   icons: {
-    icon: '/icon-192x192.png',
-    apple: '/icon-512x512.png',
+    icon: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
   },
 }
 
@@ -33,9 +45,22 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="apple-touch-icon" href="/icon-512x512.png" />
+        {/* PWA Meta Tags */}
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="NvjmiOS" />
+
+        {/* Apple Touch Icons */}
+        <link rel="apple-touch-icon" href="/icon-192x192.png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/icon-512x512.png" sizes="512x512" />
+
+        {/* Splash Screen */}
+        <link rel="apple-touch-startup-image" href="/icon-512x512.png" />
+
+        {/* Theme Color */}
+        <meta name="theme-color" content="#000000" />
+        <meta name="msapplication-TileColor" content="#000000" />
       </head>
       <body className="antialiased">
         {children}
