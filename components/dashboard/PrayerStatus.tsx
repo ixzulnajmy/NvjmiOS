@@ -37,7 +37,7 @@ export async function PrayerStatus({ userId }: PrayerStatusProps) {
         <CardTitle className="flex items-center justify-between text-green-900">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-green-600" />
-            Today's Prayers
+            Today&apos;s Prayers
           </div>
           <span className="text-sm font-normal text-muted-foreground">
             {completedCount}/5 • {jemaahCount} Jemaah

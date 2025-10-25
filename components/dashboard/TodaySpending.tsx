@@ -36,7 +36,7 @@ export async function TodaySpending({ userId }: TodaySpendingProps) {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <Wallet className="h-5 w-5" />
-          Today's Spending
+          Today&apos;s Spending
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
