@@ -29,24 +29,35 @@ export default function SignupPage() {
     setIsLoading(true);
     setError(null);
 
+    console.log('📝 Signup attempt started');
+    console.log('Email:', data.email);
+
     try {
+      console.log('Creating Supabase client...');
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signUp({
+      console.log('Supabase client created successfully');
+
+      console.log('Attempting to sign up...');
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
       });
 
       if (authError) {
+        console.error('❌ Signup error:', authError);
         setError(authError.message);
         setIsLoading(false);
         return;
       }
 
+      console.log('✅ Signup successful!', authData);
       // Redirect to dashboard (Supabase will auto-confirm in dev)
       router.push('/dashboard');
       router.refresh();
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('❌ Unexpected error during signup:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
