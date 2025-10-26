@@ -221,16 +221,16 @@ export default function NewExpensePage() {
             <div className="space-y-2">
               <Label htmlFor="account_id">Account (Optional)</Label>
               <Select
-                value={formData.account_id}
+                value={formData.account_id || 'none'}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, account_id: value })
+                  setFormData({ ...formData, account_id: value === 'none' ? '' : value })
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No account</SelectItem>
+                  <SelectItem value="none">No account</SelectItem>
                   {accounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.icon && <span>{account.icon} </span>}

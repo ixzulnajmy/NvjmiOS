@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { BottomNav } from '@/components/dashboard/BottomNav';
 
 export default async function FinanceLayout({
   children,
@@ -18,6 +19,7 @@ export default async function FinanceLayout({
       <main className="max-w-4xl mx-auto px-4 py-6">
         {children}
       </main>
+      <BottomNav />
     </div>
   );
 }
