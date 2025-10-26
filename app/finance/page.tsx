@@ -61,6 +61,9 @@ export default async function FinancePage() {
   const nextWeek = new Date(today);
   nextWeek.setDate(today.getDate() + 7);
 
+  // Calculate next payday (assume end of month for now, can be configured later)
+  const nextPayday = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
   const upcomingBNPL = bnpl?.filter(b => {
     if (!b.next_due_date) return false;
     const dueDate = new Date(b.next_due_date);
@@ -73,6 +76,27 @@ export default async function FinancePage() {
   }) || [];
 
   const hasUpcoming = upcomingBNPL.length > 0 || upcomingCC.length > 0;
+
+  // Calculate "Available to Spend" - payments due before next payday
+  const bnplDueBeforePayday = bnpl?.filter(b => {
+    if (!b.next_due_date) return false;
+    const dueDate = new Date(b.next_due_date);
+    return dueDate >= today && dueDate <= nextPayday;
+  }).reduce((sum, b) => sum + b.installment_amount, 0) || 0;
+
+  const ccDueBeforePayday = creditCards?.filter(c => {
+    const dueDate = new Date(c.due_date);
+    return dueDate >= today && dueDate <= nextPayday;
+  }).reduce((sum, c) => sum + c.minimum_payment, 0) || 0;
+
+  const availableToSpend = totalAvailable - bnplDueBeforePayday - ccDueBeforePayday;
+
+  // Color coding for available to spend
+  const getAvailableColor = () => {
+    if (availableToSpend < 0) return 'text-red-600';
+    if (availableToSpend < 500) return 'text-orange-600';
+    return 'text-green-600';
+  };
 
   return (
     <div className="space-y-6">
@@ -90,22 +114,34 @@ export default async function FinancePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Primary Metric - Available to Spend */}
+          <div className="text-center pb-4 border-b">
+            <p className="text-sm text-muted-foreground mb-1">Available to Spend</p>
+            <p className={`text-4xl font-bold ${getAvailableColor()}`}>
+              {formatCurrency(availableToSpend)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              After {formatCurrency(bnplDueBeforePayday + ccDueBeforePayday)} payments due before next payday
+            </p>
+          </div>
+
+          {/* Secondary Metrics */}
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Net Worth</p>
-              <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-xl font-bold ${netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatCurrency(netWorth)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Available</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-sm text-muted-foreground">In Accounts</p>
+              <p className="text-xl font-bold text-blue-600">
                 {formatCurrency(totalAvailable)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Owed</p>
-              <p className="text-2xl font-bold text-orange-600">
+              <p className="text-sm text-muted-foreground">Total Owed</p>
+              <p className="text-xl font-bold text-orange-600">
                 {formatCurrency(totalOwed)}
               </p>
             </div>
@@ -175,7 +211,7 @@ export default async function FinancePage() {
 
       {/* Quick Navigation */}
       <div className="grid grid-cols-2 gap-4">
-        <Link href="/dashboard/finance/accounts">
+        <Link href="/finance/accounts">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -191,7 +227,7 @@ export default async function FinancePage() {
           </Card>
         </Link>
 
-        <Link href="/dashboard/finance/bnpl">
+        <Link href="/finance/bnpl">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -207,7 +243,7 @@ export default async function FinancePage() {
           </Card>
         </Link>
 
-        <Link href="/dashboard/finance/credit-cards">
+        <Link href="/finance/credit-cards">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -223,7 +259,7 @@ export default async function FinancePage() {
           </Card>
         </Link>
 
-        <Link href="/dashboard/finance/transactions">
+        <Link href="/finance/transactions">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">

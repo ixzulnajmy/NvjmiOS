@@ -35,7 +35,7 @@ export default async function CreditCardsPage() {
           <p className="text-muted-foreground">Manage your credit card statements</p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/finance/credit-cards/new">
+          <Link href="/finance/credit-cards/new">
             <Plus className="h-4 w-4 mr-2" />
             Add Statement
           </Link>
@@ -104,7 +104,7 @@ export default async function CreditCardsPage() {
               Track your credit card statements here
             </p>
             <Button asChild>
-              <Link href="/dashboard/finance/credit-cards/new">
+              <Link href="/finance/credit-cards/new">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Statement
               </Link>

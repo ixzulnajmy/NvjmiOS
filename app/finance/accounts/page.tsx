@@ -53,7 +53,7 @@ export default async function AccountsPage() {
           <p className="text-muted-foreground">Manage your financial accounts</p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/finance/accounts/new">
+          <Link href="/finance/accounts/new">
             <Plus className="h-4 w-4 mr-2" />
             Add Account
           </Link>
@@ -69,7 +69,7 @@ export default async function AccountsPage() {
               Start by adding your first financial account
             </p>
             <Button asChild>
-              <Link href="/dashboard/finance/accounts/new">
+              <Link href="/finance/accounts/new">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Account
               </Link>
@@ -90,7 +90,7 @@ export default async function AccountsPage() {
                 </h2>
                 <div className="space-y-2">
                   {accs?.map((account) => (
-                    <Link key={account.id} href={`/dashboard/finance/accounts/${account.id}`}>
+                    <Link key={account.id} href={`/finance/accounts/${account.id}`}>
                       <Card className="hover:shadow-md transition-shadow cursor-pointer">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">

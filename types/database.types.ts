@@ -54,6 +54,7 @@ export interface Expense {
   user_id: string;
   amount: number;
   category: ExpenseCategory;
+  merchant_name?: string;
   description?: string;
   date: string;
   receipt_url?: string;
