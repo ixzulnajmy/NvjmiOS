@@ -108,7 +108,7 @@ export default function FinancePage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/dashboard')}
               className="p-2 hover:bg-accent rounded-lg transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
