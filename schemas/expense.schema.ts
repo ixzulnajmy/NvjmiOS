@@ -6,6 +6,9 @@ export const expenseSchema = z.object({
   description: z.string().optional(),
   date: z.string().or(z.date()),
   receipt_url: z.string().url().optional().or(z.literal('')),
+  account_id: z.string().uuid('Invalid account ID').optional(),
+  payment_method_id: z.string().uuid('Invalid payment method ID').optional(),
+  sort_order: z.number().int().default(0),
 });
 
 export type ExpenseFormData = z.infer<typeof expenseSchema>;

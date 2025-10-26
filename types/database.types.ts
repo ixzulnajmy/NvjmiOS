@@ -9,6 +9,12 @@ export type PrayerName = 'subuh' | 'zohor' | 'asar' | 'maghrib' | 'isyak';
 export type PrayerStatus = 'on_time' | 'late' | 'missed';
 export type PrayerLocation = 'home' | 'office' | 'masjid_muadz' | 'other';
 
+// Finance System Types
+export type AccountType = 'savings' | 'checking' | 'credit_card' | 'bnpl' | 'ewallet';
+export type PaymentMethodType = 'qr_code' | 'apple_pay_tap' | 'physical_card_tap' | 'apple_pay_online' | 'bank_transfer' | 'fpx' | 'cash';
+export type BNPLStatus = 'active' | 'completed' | 'overdue';
+export type CreditCardStatus = 'pending' | 'paid' | 'overdue';
+
 export interface UserSettings {
   id: string;
   user_id: string;
@@ -51,6 +57,9 @@ export interface Expense {
   description?: string;
   date: string;
   receipt_url?: string;
+  account_id?: string;
+  payment_method_id?: string;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -113,6 +122,62 @@ export interface Sedekah {
   created_at: string;
 }
 
+export interface Account {
+  id: string;
+  user_id: string;
+  account_type: AccountType;
+  provider: string;
+  name: string;
+  balance?: number;
+  credit_limit?: number;
+  icon?: string;
+  color: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  user_id: string;
+  account_id: string;
+  method_type: PaymentMethodType;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface BNPL {
+  id: string;
+  user_id: string;
+  account_id?: string;
+  merchant: string;
+  item_name?: string;
+  total_amount: number;
+  installment_amount: number;
+  installments_total: number;
+  installments_paid: number;
+  next_due_date?: string;
+  status: BNPLStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreditCard {
+  id: string;
+  user_id: string;
+  account_id: string;
+  statement_date?: string;
+  due_date: string;
+  total_amount: number;
+  minimum_payment: number;
+  paid_amount: number;
+  status: CreditCardStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Database tables type
 export interface Database {
   public: {
@@ -161,6 +226,26 @@ export interface Database {
         Row: Sedekah;
         Insert: Omit<Sedekah, 'id' | 'created_at'>;
         Update: Partial<Omit<Sedekah, 'id' | 'created_at'>>;
+      };
+      accounts: {
+        Row: Account;
+        Insert: Omit<Account, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Account, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      payment_methods: {
+        Row: PaymentMethod;
+        Insert: Omit<PaymentMethod, 'id' | 'created_at'>;
+        Update: Partial<Omit<PaymentMethod, 'id' | 'created_at'>>;
+      };
+      bnpl: {
+        Row: BNPL;
+        Insert: Omit<BNPL, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<BNPL, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      credit_cards: {
+        Row: CreditCard;
+        Insert: Omit<CreditCard, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<CreditCard, 'id' | 'created_at' | 'updated_at'>>;
       };
     };
   };
