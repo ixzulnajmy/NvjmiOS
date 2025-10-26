@@ -4,7 +4,7 @@ import withPWA from 'next-pwa';
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['your-supabase-project.supabase.co'], // Update with actual Supabase URL
+    domains: ['ertbhjawoxfsolmezdkn.supabase.co'],
   },
 };
 

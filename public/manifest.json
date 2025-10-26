@@ -5,7 +5,6 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "fullscreen"],
   "background_color": "#ffffff",
   "theme_color": "#000000",
   "orientation": "portrait-primary",
@@ -33,25 +32,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "categories": ["finance", "productivity", "lifestyle"],
-  "dir": "ltr",
-  "lang": "en-MY",
-  "shortcuts": [
-    {
-      "name": "Add Expense",
-      "short_name": "Expense",
-      "description": "Quickly log an expense",
-      "url": "/dashboard/finance/expenses?action=add",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Prayer Tracker",
-      "short_name": "Prayer",
-      "description": "Check off today's prayers",
-      "url": "/dashboard/ibadah/prayers",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
