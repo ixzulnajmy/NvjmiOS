@@ -50,10 +50,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
-  category VARCHAR(50) CHECK (category IN ('food', 'transport', 'girlfriend', 'shopping', 'bills', 'other')) NOT NULL,
-  description TEXT,
+  category VARCHAR(50) CHECK (category IN ('food', 'transport', 'shopping', 'bills', 'personal', 'entertainment', 'health', 'others')) NOT NULL,
+  note TEXT,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
-  receipt_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

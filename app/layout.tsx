@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { Toaster } from '@/components/ui/sonner'
 
 export const metadata: Metadata = {
   title: 'NvjmiOS - Life Command Center',
@@ -64,6 +65,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         {children}
+        <Toaster />
       </body>
     </html>
   )

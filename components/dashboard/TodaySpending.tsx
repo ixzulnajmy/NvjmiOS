@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/lib/utils';
-import { Wallet } from 'lucide-react';
+import { Wallet, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
 interface TodaySpendingProps {
   userId: string;
@@ -32,13 +33,17 @@ export async function TodaySpending({ userId }: TodaySpendingProps) {
   }, {} as Record<string, number>) || {};
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Wallet className="h-5 w-5" />
-          Today&apos;s Spending
-        </CardTitle>
-      </CardHeader>
+    <Link href="/finance" className="block transition-transform hover:scale-[1.02]">
+      <Card className="cursor-pointer hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Today&apos;s Spending
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </CardTitle>
+        </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex justify-between items-center">
@@ -66,6 +71,7 @@ export async function TodaySpending({ userId }: TodaySpendingProps) {
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </Link>
   );
 }

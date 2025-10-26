@@ -1,7 +1,7 @@
 // Database Types - matches Supabase schema
 
 export type DebtCategory = 'credit_card' | 'installment' | 'paylater' | 'loan' | 'insurance' | 'other';
-export type ExpenseCategory = 'food' | 'transport' | 'girlfriend' | 'shopping' | 'bills' | 'other';
+export type ExpenseCategory = 'food' | 'transport' | 'shopping' | 'bills' | 'personal' | 'entertainment' | 'health' | 'others';
 export type TimeCategory = 'deep_work' | 'meetings' | 'learning' | 'ibadah' | 'girlfriend' | 'family' | 'exercise' | 'eating' | 'commute' | 'social_media' | 'entertainment' | 'sleep' | 'other';
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type TaskListType = 'today' | 'someday' | 'work' | 'personal' | 'groceries' | 'goals';
@@ -48,9 +48,8 @@ export interface Expense {
   user_id: string;
   amount: number;
   category: ExpenseCategory;
-  description?: string;
+  note?: string;
   date: string;
-  receipt_url?: string;
   created_at: string;
   updated_at: string;
 }
