@@ -3,8 +3,9 @@ import { WeddingCountdown } from '@/components/dashboard/WeddingCountdown';
 import { DebtSummary } from '@/components/dashboard/DebtSummary';
 import { PrayerStatus } from '@/components/dashboard/PrayerStatus';
 import { TodaySpending } from '@/components/dashboard/TodaySpending';
-import { QuickActions } from '@/components/dashboard/QuickActions';
+import { QuickActionsGrid } from '@/components/ui/quick-actions-grid';
 import { getGreeting, formatDate } from '@/lib/utils';
+import { Clock, DollarSign, CheckSquare, BarChart3, Plus } from 'lucide-react';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -14,13 +15,28 @@ export default async function DashboardPage() {
     return null;
   }
 
+  const quickActions = [
+    { icon: Clock, label: 'Time', href: '/dashboard/time', color: '#00ff88' },
+    { icon: DollarSign, label: 'Finance', href: '/dashboard/finance', color: '#00ff88' },
+    { icon: CheckSquare, label: 'Tasks', href: '/dashboard/tasks', color: '#00ff88' },
+    { icon: BarChart3, label: 'Stats', href: '/dashboard/finance', color: '#00ff88' },
+    { icon: Plus, label: 'Add', href: '/dashboard/finance/expenses?action=add', color: '#00ff88' },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">{getGreeting()}, Izzul</h1>
-        <p className="text-sm text-muted-foreground">{formatDate(new Date())}</p>
+      <div className="space-y-1 pt-4">
+        <h1 className="text-3xl font-bold text-white">{getGreeting()}, Izzul</h1>
+        <p className="text-sm text-text-secondary">{formatDate(new Date())}</p>
       </div>
+
+      {/* Quick Actions Grid */}
+      <QuickActionsGrid
+        title="Quick Actions"
+        actions={quickActions}
+        showSeeAll={false}
+      />
 
       {/* Wedding Countdown */}
       <WeddingCountdown />
@@ -33,9 +49,6 @@ export default async function DashboardPage() {
 
       {/* Spending for Today */}
       <TodaySpending userId={user.id} />
-
-      {/* Quick Actions */}
-      <QuickActions />
     </div>
   );
 }

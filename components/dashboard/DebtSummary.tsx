@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/lib/utils';
 import { AlertCircle, TrendingDown } from 'lucide-react';
@@ -35,53 +35,56 @@ export async function DebtSummary({ userId }: DebtSummaryProps) {
   const totalUpcoming = upcomingPayments?.reduce((sum, debt) => sum + Number(debt.minimum_payment), 0) || 0;
 
   return (
-    <Card className="border-red-200 bg-gradient-to-br from-red-50 to-white">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-red-900">
-          <TrendingDown className="h-5 w-5 text-red-600" />
-          Debt Status
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <GlassCard variant="strong" className="bg-gradient-to-br from-red-900/20 to-orange-900/20" hover={false}>
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-2">
+          <TrendingDown className="h-5 w-5 text-error" />
+          <h3 className="text-lg font-semibold text-white">Debt Status</h3>
+        </div>
+
+        {/* Total Debt */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Total Debt</span>
-            <span className="text-2xl font-bold text-red-600">
+            <span className="text-sm font-medium text-white">Total Debt</span>
+            <span className="text-2xl font-bold text-error">
               {formatCurrency(totalDebt)}
             </span>
           </div>
-          <Progress value={percentagePaid} className="h-2" />
-          <p className="text-xs text-muted-foreground">
+          <Progress value={percentagePaid} className="h-3 bg-card-elevated" />
+          <p className="text-xs text-text-secondary">
             {percentagePaid.toFixed(1)}% paid • Target: Debt-free by Dec 2026
           </p>
         </div>
 
+        {/* Upcoming Payments */}
         {upcomingPayments && upcomingPayments.length > 0 && (
-          <div className="pt-3 border-t space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <AlertCircle className="h-4 w-4 text-orange-600" />
+          <div className="pt-3 border-t border-white/10 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-white">
+              <AlertCircle className="h-4 w-4 text-error" />
               <span>Upcoming Payments (Next 15 days)</span>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               {upcomingPayments.slice(0, 3).map((debt) => (
-                <div key={debt.id} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
+                <div key={debt.id} className="flex justify-between text-sm glass-light rounded-lg p-2">
+                  <span className="text-text-secondary">
                     {debt.name} (Due: {debt.due_day})
                   </span>
-                  <span className="font-medium">{formatCurrency(Number(debt.minimum_payment))}</span>
+                  <span className="font-medium text-white">{formatCurrency(Number(debt.minimum_payment))}</span>
                 </div>
               ))}
             </div>
-            <p className="text-xs font-medium text-orange-600 pt-1">
+            <p className="text-xs font-medium text-error pt-1">
               Total due: {formatCurrency(totalUpcoming)}
             </p>
           </div>
         )}
 
-        <div className="pt-2 text-xs text-center text-muted-foreground">
+        {/* Footer */}
+        <div className="pt-2 text-xs text-center text-text-secondary border-t border-white/10">
           {debts?.length || 0} active debts
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   );
 }

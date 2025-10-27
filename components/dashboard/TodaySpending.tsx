@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/lib/utils';
 import { Wallet } from 'lucide-react';
@@ -32,40 +32,49 @@ export async function TodaySpending({ userId }: TodaySpendingProps) {
   }, {} as Record<string, number>) || {};
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Wallet className="h-5 w-5" />
-          Today&apos;s Spending
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <GlassCard variant="strong" className="bg-gradient-to-br from-blue-900/20 to-purple-900/20" hover={false}>
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-white" />
+          <h3 className="text-lg font-semibold text-white">Today&apos;s Spending</h3>
+        </div>
+
+        {/* Spending Progress */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">
+            <span className="text-sm text-text-secondary">Daily Budget</span>
+            <span className="text-lg font-bold text-white">
               {formatCurrency(totalSpent)} / {formatCurrency(dailyBudget)}
-            </span>
-            <span className={`text-sm font-medium ${totalSpent > dailyBudget ? 'text-red-600' : 'text-green-600'}`}>
-              {totalSpent > dailyBudget ? 'Over budget' : 'On track'}
             </span>
           </div>
           <Progress
             value={Math.min(percentageSpent, 100)}
-            className={`h-2 ${totalSpent > dailyBudget ? 'bg-red-100' : ''}`}
+            className={`h-3 ${totalSpent > dailyBudget ? 'bg-error/20' : 'bg-card-elevated'}`}
           />
+          {totalSpent > dailyBudget ? (
+            <p className="text-xs text-error font-medium">
+              Over budget by {formatCurrency(totalSpent - dailyBudget)}
+            </p>
+          ) : (
+            <p className="text-xs text-text-secondary">
+              {formatCurrency(dailyBudget - totalSpent)} remaining
+            </p>
+          )}
         </div>
 
+        {/* Category Breakdown */}
         {Object.keys(byCategory).length > 0 && (
-          <div className="space-y-1 pt-2 border-t">
-            {Object.entries(byCategory).map(([category, amount]: [string, number]) => (
-              <div key={category} className="flex justify-between text-sm">
-                <span className="text-muted-foreground capitalize">{category}</span>
-                <span className="font-medium">{formatCurrency(amount)}</span>
+          <div className="space-y-2 pt-3 border-t border-white/10">
+            {(Object.entries(byCategory) as [string, number][]).map(([category, amount]) => (
+              <div key={category} className="flex justify-between text-sm glass-light rounded-lg p-2">
+                <span className="text-text-secondary capitalize">{category}</span>
+                <span className="font-medium text-white">{formatCurrency(amount)}</span>
               </div>
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   );
 }

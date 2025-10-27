@@ -51,6 +51,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // iOS 26 Liquid Glass Theme
+        'app-bg': '#0a0a0a',
+        'card-bg': '#1a1a1a',
+        'card-elevated': '#2a2a2a',
+        'success': '#00ff88',
+        'error': '#ff3b5c',
+        'text-primary': '#ffffff',
+        'text-secondary': '#8e8e93',
+        'border-subtle': 'rgba(255, 255, 255, 0.05)',
+        'border-elevated': 'rgba(255, 255, 255, 0.1)',
+        'glass-dark': 'rgba(28, 28, 30, 0.6)',
+        'glass-strong': 'rgba(28, 28, 30, 0.8)',
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -66,10 +78,33 @@ const config: Config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "slide-up": {
+          from: { transform: "translateY(10px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "slide-down": {
+          from: { transform: "translateY(-10px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "scale-in": {
+          from: { transform: "scale(0.95)", opacity: "0" },
+          to: { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "slide-up": "slide-up 0.3s ease-out",
+        "slide-down": "slide-down 0.3s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
+        "scale-in": "scale-in 0.2s ease-out",
+      },
+      backdropBlur: {
+        xs: '2px',
       },
     },
   },
