@@ -1,4 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
+import { CircleBackButton } from '@/components/ui/circle-back-button';
+import { QuickActionsGrid } from '@/components/ui/quick-actions-grid';
+import { Button3D } from '@/components/ui/button-3d';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
@@ -10,7 +13,12 @@ import {
   Wallet,
   AlertCircle,
   TrendingUp,
-  Calendar
+  Calendar,
+  Users,
+  RefreshCw,
+  Plus,
+  BarChart3,
+  ArrowUpRight
 } from 'lucide-react';
 
 export default async function FinancePage() {
@@ -74,170 +82,191 @@ export default async function FinancePage() {
 
   const hasUpcoming = upcomingBNPL.length > 0 || upcomingCC.length > 0;
 
+  const quickActions = [
+    { icon: Wallet, label: 'Accounts', href: '/dashboard/finance/accounts' },
+    { icon: BarChart3, label: 'Wealth', href: '/dashboard/finance' },
+    { icon: Users, label: 'Friends', href: '/dashboard/finance' },
+    { icon: RefreshCw, label: 'BNPL', href: '/dashboard/finance/bnpl' },
+    { icon: Plus, label: 'Add', href: '/dashboard/finance/expenses?action=add' },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Financial Overview</h1>
-        <p className="text-muted-foreground">Your complete financial picture</p>
+    <div className="space-y-6 pb-6">
+      {/* Header with Back Button */}
+      <div className="flex items-center gap-4 pt-4">
+        <CircleBackButton />
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold text-white">Finance</h1>
+          <p className="text-sm text-text-secondary">Your complete financial picture</p>
+        </div>
       </div>
 
-      {/* Financial Overview Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5" />
-            Financial Overview
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+      {/* Quick Actions */}
+      <QuickActionsGrid
+        title="Quick Actions"
+        actions={quickActions}
+        showSeeAll={false}
+      />
+
+      {/* Hero Balance Section */}
+      <GlassCard variant="strong" className="bg-gradient-to-br from-green-900/20 to-blue-900/20">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Net Worth</p>
-              <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(netWorth)}
-              </p>
+              <p className="text-sm text-text-secondary">Your Balance</p>
+              <div className="flex items-baseline gap-2">
+                <h2 className={`text-4xl font-bold ${netWorth >= 0 ? 'text-success' : 'text-error'}`}>
+                  {formatCurrency(netWorth)}
+                </h2>
+                <div className="flex items-center gap-1 text-success text-sm">
+                  <ArrowUpRight className="h-4 w-4" />
+                  <span>+5.5%</span>
+                </div>
+              </div>
+              <p className="text-xs text-text-secondary mt-1">Last Week</p>
             </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Link href="/dashboard/finance/transactions/new" className="flex-1">
+              <Button3D variant="primary" className="w-full">
+                Deposit
+              </Button3D>
+            </Link>
+            <Link href="/dashboard/finance/expenses?action=add" className="flex-1">
+              <Button3D variant="secondary" className="w-full">
+                Send
+              </Button3D>
+            </Link>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
             <div>
-              <p className="text-sm text-muted-foreground">Available</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-xs text-text-secondary">Available</p>
+              <p className="text-xl font-bold text-white">
                 {formatCurrency(totalAvailable)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Owed</p>
-              <p className="text-2xl font-bold text-orange-600">
+              <p className="text-xs text-text-secondary">Owed</p>
+              <p className="text-xl font-bold text-error">
                 {formatCurrency(totalOwed)}
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </GlassCard>
 
       {/* Upcoming Payments Alert */}
       {hasUpcoming && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-orange-900">
-              <AlertCircle className="h-5 w-5" />
-              Upcoming Payments
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {upcomingBNPL.map((item) => {
-              const daysUntil = Math.ceil((new Date(item.next_due_date!).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-              return (
-                <div key={item.id} className="flex justify-between items-center text-sm">
-                  <span className="text-orange-900">{item.merchant} - BNPL</span>
-                  <span className="font-medium text-orange-700">
-                    {formatCurrency(item.installment_amount)} due in {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
-                  </span>
-                </div>
-              );
-            })}
-            {upcomingCC.map((card) => {
-              const daysUntil = Math.ceil((new Date(card.due_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-              return (
-                <div key={card.id} className="flex justify-between items-center text-sm">
-                  <span className="text-orange-900">Credit Card Payment</span>
-                  <span className="font-medium text-orange-700">
-                    {formatCurrency(card.minimum_payment)} due in {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
-                  </span>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+        <GlassCard variant="strong" className="bg-gradient-to-br from-orange-900/20 to-red-900/20">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-error" />
+              <h3 className="text-lg font-semibold text-white">Upcoming Payments</h3>
+            </div>
+            <div className="space-y-2">
+              {upcomingBNPL.map((item) => {
+                const daysUntil = Math.ceil((new Date(item.next_due_date!).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div key={item.id} className="flex justify-between items-center text-sm glass-light rounded-lg p-3">
+                    <span className="text-white">{item.merchant} - BNPL</span>
+                    <span className="font-medium text-error">
+                      {formatCurrency(item.installment_amount)} • {daysUntil}d
+                    </span>
+                  </div>
+                );
+              })}
+              {upcomingCC.map((card) => {
+                const daysUntil = Math.ceil((new Date(card.due_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div key={card.id} className="flex justify-between items-center text-sm glass-light rounded-lg p-3">
+                    <span className="text-white">Credit Card Payment</span>
+                    <span className="font-medium text-error">
+                      {formatCurrency(card.minimum_payment)} • {daysUntil}d
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </GlassCard>
       )}
 
       {/* This Month Spending */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            This Month
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <GlassCard variant="strong">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-white" />
+            <h3 className="text-lg font-semibold text-white">This Month</h3>
+          </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Spent</span>
-            <span className="text-lg font-bold">
+            <span className="text-sm text-text-secondary">Spent</span>
+            <span className="text-lg font-bold text-white">
               {formatCurrency(thisMonthSpent)} / {formatCurrency(monthlyBudget)}
             </span>
           </div>
-          <Progress value={Math.min(spendingPercentage, 100)} className="h-2" />
+          <Progress value={Math.min(spendingPercentage, 100)} className="h-3 bg-card-elevated" />
           {spendingPercentage > 100 && (
-            <p className="text-sm text-red-600 font-medium">
+            <p className="text-sm text-error font-medium">
               Over budget by {formatCurrency(thisMonthSpent - monthlyBudget)}
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </GlassCard>
 
-      {/* Quick Navigation */}
-      <div className="grid grid-cols-2 gap-4">
-        <Link href="/dashboard/finance/accounts">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wallet className="h-4 w-4" />
-                Accounts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {accounts?.length || 0} active
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/finance/bnpl">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Calendar className="h-4 w-4" />
-                BNPL
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {bnpl?.length || 0} active
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/finance/credit-cards">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CreditCard className="h-4 w-4" />
-                Credit Cards
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {creditCards?.length || 0} pending
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/finance/transactions">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Receipt className="h-4 w-4" />
-                Transactions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                View all
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
+      {/* Transaction Categories Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-lg font-semibold text-white">Transaction</h3>
+          <Link href="/dashboard/finance/transactions" className="text-xs text-text-secondary hover:text-white transition-colors">
+            See more →
+          </Link>
+        </div>
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+          <Link href="/dashboard/finance/accounts">
+            <div className="flex flex-col items-center gap-2 min-w-[64px]">
+              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
+                <Wallet className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs text-text-secondary text-center">E-wallet</span>
+            </div>
+          </Link>
+          <Link href="/dashboard/finance/bnpl">
+            <div className="flex flex-col items-center gap-2 min-w-[64px]">
+              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
+                <RefreshCw className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs text-text-secondary text-center">Top Up</span>
+            </div>
+          </Link>
+          <Link href="/dashboard/finance/credit-cards">
+            <div className="flex flex-col items-center gap-2 min-w-[64px]">
+              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
+                <CreditCard className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs text-text-secondary text-center">Card</span>
+            </div>
+          </Link>
+          <Link href="/dashboard/finance/transactions">
+            <div className="flex flex-col items-center gap-2 min-w-[64px]">
+              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
+                <Receipt className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs text-text-secondary text-center">Power</span>
+            </div>
+          </Link>
+          <Link href="/dashboard/finance/accounts">
+            <div className="flex flex-col items-center gap-2 min-w-[64px]">
+              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs text-text-secondary text-center">Bank</span>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   );

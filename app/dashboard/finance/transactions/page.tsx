@@ -62,6 +62,7 @@ export default function TransactionsPage() {
   }
 
   // Group expenses by date
+  type Expense = typeof expenses[number];
   const groupedExpenses = expenses.reduce((acc, expense) => {
     const date = expense.date;
     if (!acc[date]) {
@@ -69,7 +70,7 @@ export default function TransactionsPage() {
     }
     acc[date].push(expense);
     return acc;
-  }, {} as Record<string, typeof expenses>);
+  }, {} as Record<string, Expense[]>);
 
   const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -118,7 +119,7 @@ export default function TransactionsPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedExpenses).map(([date, dayExpenses]) => {
+          {(Object.entries(groupedExpenses) as [string, Expense[]][]).map(([date, dayExpenses]) => {
             const dayTotal = dayExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
             return (

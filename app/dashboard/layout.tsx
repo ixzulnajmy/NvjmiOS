@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { BottomNav } from '@/components/dashboard/BottomNav';
+import { FloatingNavbar } from '@/components/dashboard/FloatingNavbar';
 
 export default async function DashboardLayout({
   children,
@@ -15,14 +15,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-app-bg safe-bottom">
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {children}
       </main>
 
-      {/* Bottom Navigation - Fixed at bottom */}
-      <BottomNav />
+      {/* Floating Navigation - iOS 26 Liquid Glass */}
+      <FloatingNavbar />
     </div>
   );
 }
