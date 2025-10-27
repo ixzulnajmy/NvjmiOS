@@ -36,6 +36,7 @@ export default function NewExpensePage() {
   const [formData, setFormData] = useState({
     amount: '',
     category: 'food' as any,
+    merchant_name: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
     account_id: '',
@@ -115,7 +116,7 @@ export default function NewExpensePage() {
 
       if (insertError) throw insertError;
 
-      router.push('/dashboard/finance/transactions');
+      router.push('/finance/transactions');
       router.refresh();
     } catch (err: any) {
       console.error('Error creating expense:', err);
@@ -129,7 +130,7 @@ export default function NewExpensePage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/finance/transactions">
+          <Link href="/finance/transactions">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -187,10 +188,20 @@ export default function NewExpensePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="merchant_name">Merchant / Store</Label>
+              <Input
+                id="merchant_name"
+                placeholder="e.g., Starbucks, 7-Eleven, Grab"
+                value={formData.merchant_name}
+                onChange={(e) => setFormData({ ...formData, merchant_name: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Note (Optional)</Label>
               <Input
                 id="description"
-                placeholder="e.g., Starbucks coffee"
+                placeholder="Additional details"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
@@ -210,16 +221,16 @@ export default function NewExpensePage() {
             <div className="space-y-2">
               <Label htmlFor="account_id">Account (Optional)</Label>
               <Select
-                value={formData.account_id}
+                value={formData.account_id || 'none'}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, account_id: value })
+                  setFormData({ ...formData, account_id: value === 'none' ? '' : value })
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No account</SelectItem>
+                  <SelectItem value="none">No account</SelectItem>
                   {accounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.icon && <span>{account.icon} </span>}
@@ -259,7 +270,7 @@ export default function NewExpensePage() {
                 {loading ? 'Adding...' : 'Add Expense'}
               </Button>
               <Button type="button" variant="outline" asChild>
-                <Link href="/dashboard/finance/transactions">Cancel</Link>
+                <Link href="/finance/transactions">Cancel</Link>
               </Button>
             </div>
           </form>
@@ -273,7 +284,7 @@ export default function NewExpensePage() {
               💡 Tip: Add your accounts first to track which account you used for each expense.
             </p>
             <Button variant="link" asChild className="p-0 h-auto text-blue-700">
-              <Link href="/dashboard/finance/accounts/new">
+              <Link href="/finance/accounts/new">
                 Add an account →
               </Link>
             </Button>

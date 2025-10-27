@@ -13,7 +13,7 @@ export function QuickActions() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
-          <Link href="/dashboard/finance/expenses?action=add">
+          <Link href="/finance/transactions/new">
             <Button variant="outline" className="w-full justify-start gap-2" size="sm">
               <PlusCircle className="h-4 w-4" />
               Log Expense
@@ -31,7 +31,7 @@ export function QuickActions() {
               Quran
             </Button>
           </Link>
-          <Link href="/dashboard/finance/debts">
+          <Link href="/finance/debts">
             <Button variant="outline" className="w-full justify-start gap-2" size="sm">
               <Heart className="h-4 w-4" />
               Pay Debt

@@ -146,33 +146,28 @@ export default function TransactionsPage() {
                           {/* Expense Details */}
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold truncate">
-                              {expense.description || expense.category}
+                              {expense.merchant_name || expense.description || expense.category}
                             </p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {expense.description && expense.merchant_name && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {expense.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                               {expense.accounts && (
                                 <span className="flex items-center gap-1">
                                   {expense.accounts.icon && <span>{expense.accounts.icon}</span>}
                                   <span>{expense.accounts.provider}</span>
                                 </span>
                               )}
+                              {expense.payment_methods && expense.accounts && <span>•</span>}
                               {expense.payment_methods && (
-                                <>
-                                  <span>•</span>
-                                  <span>{paymentMethodLabels[expense.payment_methods.method_type]}</span>
-                                </>
+                                <span>{paymentMethodLabels[expense.payment_methods.method_type]}</span>
                               )}
                               {!expense.accounts && !expense.payment_methods && (
                                 <span className="capitalize">{expense.category}</span>
                               )}
                             </div>
-                            {expense.date && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {new Date(expense.date + 'T00:00:00').toLocaleTimeString('en-MY', {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                            )}
                           </div>
 
                           {/* Amount */}
@@ -198,7 +193,7 @@ export default function TransactionsPage() {
         size="lg"
         className="fixed bottom-24 right-6 h-14 w-14 rounded-full shadow-lg z-40"
       >
-        <Link href="/dashboard/finance/transactions/new">
+        <Link href="/finance/transactions/new">
           <Plus className="h-6 w-6" />
         </Link>
       </Button>

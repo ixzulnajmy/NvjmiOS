@@ -18,7 +18,8 @@ import {
   RefreshCw,
   Plus,
   BarChart3,
-  ArrowUpRight
+  ArrowUpRight,
+  Settings
 } from 'lucide-react';
 
 export default async function FinancePage() {
@@ -69,6 +70,9 @@ export default async function FinancePage() {
   const nextWeek = new Date(today);
   nextWeek.setDate(today.getDate() + 7);
 
+  // Calculate next payday (assume end of month for now, can be configured later)
+  const nextPayday = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
   const upcomingBNPL = bnpl?.filter(b => {
     if (!b.next_due_date) return false;
     const dueDate = new Date(b.next_due_date);
@@ -82,12 +86,33 @@ export default async function FinancePage() {
 
   const hasUpcoming = upcomingBNPL.length > 0 || upcomingCC.length > 0;
 
+  // Calculate "Available to Spend" - payments due before next payday
+  const bnplDueBeforePayday = bnpl?.filter(b => {
+    if (!b.next_due_date) return false;
+    const dueDate = new Date(b.next_due_date);
+    return dueDate >= today && dueDate <= nextPayday;
+  }).reduce((sum, b) => sum + b.installment_amount, 0) || 0;
+
+  const ccDueBeforePayday = creditCards?.filter(c => {
+    const dueDate = new Date(c.due_date);
+    return dueDate >= today && dueDate <= nextPayday;
+  }).reduce((sum, c) => sum + c.minimum_payment, 0) || 0;
+
+  const availableToSpend = totalAvailable - bnplDueBeforePayday - ccDueBeforePayday;
+
+  // Color coding for available to spend
+  const getAvailableColor = () => {
+    if (availableToSpend < 0) return 'text-error';
+    if (availableToSpend < 500) return 'text-orange-400';
+    return 'text-success';
+  };
+
   const quickActions = [
-    { icon: Wallet, label: 'Accounts', href: '/dashboard/finance/accounts' },
-    { icon: BarChart3, label: 'Wealth', href: '/dashboard/finance' },
-    { icon: Users, label: 'Friends', href: '/dashboard/finance' },
-    { icon: RefreshCw, label: 'BNPL', href: '/dashboard/finance/bnpl' },
-    { icon: Plus, label: 'Add', href: '/dashboard/finance/expenses?action=add' },
+    { icon: Wallet, label: 'Accounts', href: '/finance/accounts' },
+    { icon: BarChart3, label: 'Wealth', href: '/finance' },
+    { icon: Users, label: 'Friends', href: '/finance/friends' },
+    { icon: Settings, label: 'Settings', href: '/finance/settings' },
+    { icon: Plus, label: 'Add', href: '/finance/expenses?action=add' },
   ];
 
   return (
@@ -108,16 +133,28 @@ export default async function FinancePage() {
         showSeeAll={false}
       />
 
-      {/* Hero Balance Section */}
+      {/* Hero Balance Section with Available to Spend */}
       <GlassCard variant="strong" className="bg-gradient-to-br from-green-900/20 to-blue-900/20">
         <div className="space-y-4">
+          {/* Available to Spend - Primary Metric */}
+          <div className="text-center pb-4 border-b border-white/10">
+            <p className="text-sm text-text-secondary mb-1">Available to Spend</p>
+            <h2 className={`text-4xl font-bold ${getAvailableColor()}`}>
+              {formatCurrency(availableToSpend)}
+            </h2>
+            <p className="text-xs text-text-secondary mt-2">
+              After {formatCurrency(bnplDueBeforePayday + ccDueBeforePayday)} payments due before next payday
+            </p>
+          </div>
+
+          {/* Net Worth */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-text-secondary">Your Balance</p>
+              <p className="text-sm text-text-secondary">Net Worth</p>
               <div className="flex items-baseline gap-2">
-                <h2 className={`text-4xl font-bold ${netWorth >= 0 ? 'text-success' : 'text-error'}`}>
+                <h3 className={`text-2xl font-bold ${netWorth >= 0 ? 'text-success' : 'text-error'}`}>
                   {formatCurrency(netWorth)}
-                </h2>
+                </h3>
                 <div className="flex items-center gap-1 text-success text-sm">
                   <ArrowUpRight className="h-4 w-4" />
                   <span>+5.5%</span>
@@ -129,12 +166,12 @@ export default async function FinancePage() {
 
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <Link href="/dashboard/finance/transactions/new" className="flex-1">
+            <Link href="/finance/transactions/new" className="flex-1">
               <Button3D variant="primary" className="w-full">
                 Deposit
               </Button3D>
             </Link>
-            <Link href="/dashboard/finance/expenses?action=add" className="flex-1">
+            <Link href="/finance/expenses?action=add" className="flex-1">
               <Button3D variant="secondary" className="w-full">
                 Send
               </Button3D>
@@ -144,13 +181,13 @@ export default async function FinancePage() {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
             <div>
-              <p className="text-xs text-text-secondary">Available</p>
+              <p className="text-xs text-text-secondary">In Accounts</p>
               <p className="text-xl font-bold text-white">
                 {formatCurrency(totalAvailable)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-text-secondary">Owed</p>
+              <p className="text-xs text-text-secondary">Total Owed</p>
               <p className="text-xl font-bold text-error">
                 {formatCurrency(totalOwed)}
               </p>
@@ -221,12 +258,12 @@ export default async function FinancePage() {
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-lg font-semibold text-white">Transaction</h3>
-          <Link href="/dashboard/finance/transactions" className="text-xs text-text-secondary hover:text-white transition-colors">
+          <Link href="/finance/transactions" className="text-xs text-text-secondary hover:text-white transition-colors">
             See more →
           </Link>
         </div>
         <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          <Link href="/dashboard/finance/accounts">
+          <Link href="/finance/accounts">
             <div className="flex flex-col items-center gap-2 min-w-[64px]">
               <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
                 <Wallet className="h-6 w-6 text-white" />
@@ -234,7 +271,7 @@ export default async function FinancePage() {
               <span className="text-xs text-text-secondary text-center">E-wallet</span>
             </div>
           </Link>
-          <Link href="/dashboard/finance/bnpl">
+          <Link href="/finance/bnpl">
             <div className="flex flex-col items-center gap-2 min-w-[64px]">
               <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
                 <RefreshCw className="h-6 w-6 text-white" />
@@ -242,7 +279,7 @@ export default async function FinancePage() {
               <span className="text-xs text-text-secondary text-center">Top Up</span>
             </div>
           </Link>
-          <Link href="/dashboard/finance/credit-cards">
+          <Link href="/finance/credit-cards">
             <div className="flex flex-col items-center gap-2 min-w-[64px]">
               <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
                 <CreditCard className="h-6 w-6 text-white" />
@@ -250,7 +287,7 @@ export default async function FinancePage() {
               <span className="text-xs text-text-secondary text-center">Card</span>
             </div>
           </Link>
-          <Link href="/dashboard/finance/transactions">
+          <Link href="/finance/transactions">
             <div className="flex flex-col items-center gap-2 min-w-[64px]">
               <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
                 <Receipt className="h-6 w-6 text-white" />
@@ -258,7 +295,7 @@ export default async function FinancePage() {
               <span className="text-xs text-text-secondary text-center">Power</span>
             </div>
           </Link>
-          <Link href="/dashboard/finance/accounts">
+          <Link href="/finance/accounts">
             <div className="flex flex-col items-center gap-2 min-w-[64px]">
               <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
                 <DollarSign className="h-6 w-6 text-white" />

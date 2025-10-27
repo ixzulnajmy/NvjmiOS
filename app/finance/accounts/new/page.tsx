@@ -60,7 +60,7 @@ export default function NewAccountPage() {
 
       if (insertError) throw insertError;
 
-      router.push('/dashboard/finance/accounts');
+      router.push('/finance/accounts');
       router.refresh();
     } catch (err: any) {
       console.error('Error creating account:', err);
@@ -74,7 +74,7 @@ export default function NewAccountPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/finance/accounts">
+          <Link href="/finance/accounts">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -202,7 +202,7 @@ export default function NewAccountPage() {
                 {loading ? 'Creating...' : 'Create Account'}
               </Button>
               <Button type="button" variant="outline" asChild>
-                <Link href="/dashboard/finance/accounts">Cancel</Link>
+                <Link href="/finance/accounts">Cancel</Link>
               </Button>
             </div>
           </form>
