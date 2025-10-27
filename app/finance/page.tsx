@@ -14,12 +14,8 @@ import {
   AlertCircle,
   TrendingUp,
   Calendar,
-  Users,
   RefreshCw,
-  Plus,
-  BarChart3,
   ArrowUpRight,
-  Settings
 } from 'lucide-react';
 
 export default async function FinancePage() {
@@ -108,11 +104,11 @@ export default async function FinancePage() {
   };
 
   const quickActions = [
-    { icon: Wallet, label: 'Accounts', href: '/finance/accounts' },
-    { icon: BarChart3, label: 'Wealth', href: '/finance' },
-    { icon: Users, label: 'Friends', href: '/finance/friends' },
-    { icon: Settings, label: 'Settings', href: '/finance/settings' },
-    { icon: Plus, label: 'Add', href: '/finance/expenses?action=add' },
+    { icon: 'Wallet', label: 'Accounts', href: '/finance/accounts' },
+    { icon: 'BarChart3', label: 'Wealth', href: '/finance' },
+    { icon: 'Users', label: 'Friends', href: '/finance/friends' },
+    { icon: 'Settings', label: 'Settings', href: '/finance/settings' },
+    { icon: 'Plus', label: 'Add', href: '/finance/expenses?action=add' },
   ];
 
   return (

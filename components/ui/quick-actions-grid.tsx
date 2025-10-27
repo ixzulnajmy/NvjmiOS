@@ -4,10 +4,32 @@ import * as React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import {
+  Clock,
+  DollarSign,
+  CheckSquare,
+  BarChart3,
+  Plus,
+  Wallet,
+  Users,
+  Settings,
+  LucideIcon
+} from 'lucide-react';
+
+// Icon map to convert string names to icon components
+const iconMap: Record<string, LucideIcon> = {
+  Clock,
+  DollarSign,
+  CheckSquare,
+  BarChart3,
+  Plus,
+  Wallet,
+  Users,
+  Settings,
+};
 
 export interface QuickAction {
-  icon: LucideIcon;
+  icon: string;
   label: string;
   href: string;
   color?: string;
@@ -58,7 +80,7 @@ export function QuickActionsGrid({
 }
 
 function QuickActionButton({ action, index }: { action: QuickAction; index: number }) {
-  const Icon = action.icon;
+  const Icon = iconMap[action.icon] || Clock; // Default to Clock if icon not found
 
   return (
     <Link href={action.href}>

@@ -5,7 +5,6 @@ import { PrayerStatus } from '@/components/dashboard/PrayerStatus';
 import { TodaySpending } from '@/components/dashboard/TodaySpending';
 import { QuickActionsGrid } from '@/components/ui/quick-actions-grid';
 import { getGreeting, formatDate } from '@/lib/utils';
-import { Clock, DollarSign, CheckSquare, BarChart3, Plus } from 'lucide-react';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -16,11 +15,11 @@ export default async function DashboardPage() {
   }
 
   const quickActions = [
-    { icon: Clock, label: 'Time', href: '/dashboard/time', color: '#00ff88' },
-    { icon: DollarSign, label: 'Finance', href: '/dashboard/finance', color: '#00ff88' },
-    { icon: CheckSquare, label: 'Tasks', href: '/dashboard/tasks', color: '#00ff88' },
-    { icon: BarChart3, label: 'Stats', href: '/dashboard/finance', color: '#00ff88' },
-    { icon: Plus, label: 'Add', href: '/dashboard/finance/expenses?action=add', color: '#00ff88' },
+    { icon: 'Clock', label: 'Time', href: '/dashboard/time', color: '#00ff88' },
+    { icon: 'DollarSign', label: 'Finance', href: '/dashboard/finance', color: '#00ff88' },
+    { icon: 'CheckSquare', label: 'Tasks', href: '/dashboard/tasks', color: '#00ff88' },
+    { icon: 'BarChart3', label: 'Stats', href: '/dashboard/finance', color: '#00ff88' },
+    { icon: 'Plus', label: 'Add', href: '/dashboard/finance/expenses?action=add', color: '#00ff88' },
   ];
 
   return (
