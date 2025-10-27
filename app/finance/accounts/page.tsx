@@ -107,12 +107,14 @@ export default async function AccountsPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-3">
-                              {account.account_type === 'credit_card' ? (
+                              {account.account_type === 'credit_card' || account.account_type === 'bnpl' ? (
                                 <div className="text-right">
                                   <p className="text-lg font-bold">
                                     {account.credit_limit ? formatCurrency(account.credit_limit) : 'N/A'}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">Credit Limit</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {account.account_type === 'bnpl' ? 'Available Limit' : 'Credit Limit'}
+                                  </p>
                                 </div>
                               ) : (
                                 <div className="text-right">

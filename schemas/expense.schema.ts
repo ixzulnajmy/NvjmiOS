@@ -9,6 +9,8 @@ export const expenseSchema = z.object({
   receipt_url: z.string().url().optional().or(z.literal('')),
   account_id: z.string().uuid('Invalid account ID').optional(),
   payment_method_id: z.string().uuid('Invalid payment method ID').optional(),
+  statement_id: z.string().uuid('Invalid statement ID').optional(),
+  is_reconciled: z.boolean().default(false),
   sort_order: z.number().int().default(0),
 });
 

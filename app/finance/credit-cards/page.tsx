@@ -144,8 +144,9 @@ function CreditCardStatementCard({ statement, paid = false }: { statement: any; 
   const isDueSoon = daysUntilDue >= 0 && daysUntilDue <= 3 && !paid;
 
   return (
-    <Card className={isOverdue ? 'border-red-200 bg-red-50' : isDueSoon ? 'border-orange-200 bg-orange-50' : ''}>
-      <CardContent className="p-4">
+    <Link href={`/finance/credit-cards/${statement.id}`}>
+      <Card className={`${isOverdue ? 'border-red-200 bg-red-50' : isDueSoon ? 'border-orange-200 bg-orange-50' : ''} hover:shadow-md transition-shadow cursor-pointer`}>
+        <CardContent className="p-4">
         <div className="space-y-3">
           <div className="flex items-start justify-between">
             <div>
@@ -215,5 +216,6 @@ function CreditCardStatementCard({ statement, paid = false }: { statement: any; 
         </div>
       </CardContent>
     </Card>
+    </Link>
   );
 }

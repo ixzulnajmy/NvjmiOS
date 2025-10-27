@@ -60,6 +60,8 @@ export interface Expense {
   receipt_url?: string;
   account_id?: string;
   payment_method_id?: string;
+  statement_id?: string;
+  is_reconciled: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
