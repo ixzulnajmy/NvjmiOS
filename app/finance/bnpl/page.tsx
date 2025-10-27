@@ -37,7 +37,7 @@ export default async function BNPLPage() {
           <p className="text-muted-foreground">Track your installment purchases</p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/finance/bnpl/new">
+          <Link href="/finance/bnpl/new">
             <Plus className="h-4 w-4 mr-2" />
             Add BNPL
           </Link>
@@ -104,7 +104,7 @@ export default async function BNPLPage() {
               Track your installment purchases here
             </p>
             <Button asChild>
-              <Link href="/dashboard/finance/bnpl/new">
+              <Link href="/finance/bnpl/new">
                 <Plus className="h-4 w-4 mr-2" />
                 Add BNPL Purchase
               </Link>

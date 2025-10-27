@@ -59,7 +59,7 @@ export default async function AccountsPage() {
       </div>
 
       {/* Add Account Button */}
-      <Link href="/dashboard/finance/accounts/new">
+      <Link href="/finance/accounts/new">
         <Button3D variant="primary" className="w-full">
           <Plus className="h-5 w-5 mr-2" />
           Add Account
@@ -90,7 +90,7 @@ export default async function AccountsPage() {
                 </h2>
                 <div className="space-y-3">
                   {accs.map((account) => (
-                    <Link key={account.id} href={`/dashboard/finance/accounts/${account.id}`}>
+                    <Link key={account.id} href={`/finance/accounts/${account.id}`}>
                       <GlassCard variant="strong" hover={true}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">

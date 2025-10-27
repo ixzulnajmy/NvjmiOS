@@ -13,7 +13,7 @@ const navItems = [
   },
   {
     name: 'Finance',
-    href: '/dashboard/finance',
+    href: '/finance',
     icon: DollarSign,
   },
   {
