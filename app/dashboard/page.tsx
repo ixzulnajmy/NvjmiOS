@@ -16,10 +16,10 @@ export default async function DashboardPage() {
 
   const quickActions = [
     { icon: 'Clock', label: 'Time', href: '/dashboard/time', color: '#00ff88' },
-    { icon: 'DollarSign', label: 'Finance', href: '/dashboard/finance', color: '#00ff88' },
+    { icon: 'DollarSign', label: 'Finance', href: '/finance', color: '#00ff88' },
     { icon: 'CheckSquare', label: 'Tasks', href: '/dashboard/tasks', color: '#00ff88' },
-    { icon: 'BarChart3', label: 'Stats', href: '/dashboard/finance', color: '#00ff88' },
-    { icon: 'Plus', label: 'Add', href: '/dashboard/finance/expenses?action=add', color: '#00ff88' },
+    { icon: 'BarChart3', label: 'Stats', href: '/finance', color: '#00ff88' },
+    { icon: 'Plus', label: 'Add', href: '/finance/transactions/new', color: '#00ff88' },
   ];
 
   return (

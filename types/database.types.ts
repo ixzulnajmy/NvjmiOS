@@ -14,6 +14,9 @@ export type AccountType = 'savings' | 'checking' | 'credit_card' | 'bnpl' | 'ewa
 export type PaymentMethodType = 'qr_code' | 'apple_pay_tap' | 'physical_card_tap' | 'apple_pay_online' | 'bank_transfer' | 'fpx' | 'cash';
 export type BNPLStatus = 'active' | 'completed' | 'overdue';
 export type CreditCardStatus = 'pending' | 'paid' | 'overdue';
+export type CategoryType = 'income' | 'expense' | 'transfer';
+export type IOUDirection = 'they_owe_me' | 'i_owe_them';
+export type IOUStatus = 'active' | 'paid' | 'overdue';
 
 export interface UserSettings {
   id: string;
@@ -179,6 +182,52 @@ export interface CreditCard {
   updated_at: string;
 }
 
+export interface Category {
+  id: string;
+  user_id: string;
+  name: string;
+  type: CategoryType;
+  icon: string;
+  color: string;
+  budget_amount?: number;
+  is_system: boolean;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IOUDebt {
+  id: string;
+  user_id: string;
+  person_name: string;
+  amount: number;
+  direction: IOUDirection;
+  description?: string;
+  date: string;
+  due_date?: string;
+  status: IOUStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserFinanceSettings {
+  id: string;
+  user_id: string;
+  monthly_budget: number;
+  budget_start_day: number;
+  payday_date: number;
+  rollover_unused: boolean;
+  include_savings_in_available: boolean;
+  include_credit_in_available: boolean;
+  notification_budget_warning: boolean;
+  notification_payment_reminder: boolean;
+  notification_iou_reminder: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Database tables type
 export interface Database {
   public: {
@@ -247,6 +296,21 @@ export interface Database {
         Row: CreditCard;
         Insert: Omit<CreditCard, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<CreditCard, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      categories: {
+        Row: Category;
+        Insert: Omit<Category, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Category, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      iou_debts: {
+        Row: IOUDebt;
+        Insert: Omit<IOUDebt, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<IOUDebt, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      user_finance_settings: {
+        Row: UserFinanceSettings;
+        Insert: Omit<UserFinanceSettings, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<UserFinanceSettings, 'id' | 'created_at' | 'updated_at'>>;
       };
     };
   };

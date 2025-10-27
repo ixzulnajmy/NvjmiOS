@@ -43,7 +43,7 @@
       "name": "Add Expense",
       "short_name": "Expense",
       "description": "Quickly log an expense",
-      "url": "/dashboard/finance/expenses?action=add",
+      "url": "/finance/transactions/new",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     },
     {
