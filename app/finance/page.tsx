@@ -27,6 +27,7 @@ export default async function FinancePage() {
     { data: expenses },
     { data: bnpl },
     { data: creditCards },
+    { data: userSettings },
   ] = await Promise.all([
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('is_active', true),
     supabase.from('expenses').select('*').eq('user_id', user.id)
@@ -34,7 +35,14 @@ export default async function FinancePage() {
       .lte('date', new Date().toISOString().split('T')[0]),
     supabase.from('bnpl').select('*').eq('user_id', user.id).eq('status', 'active'),
     supabase.from('credit_cards').select('*').eq('user_id', user.id).eq('status', 'pending'),
+    supabase.from('user_settings').select('budget_settings').eq('user_id', user.id).single(),
   ]);
+
+  // Get budget settings
+  const budgetSettings = userSettings?.budget_settings || {};
+  const monthlyBudget = budgetSettings.monthly_budget || 3000;
+  const payday = budgetSettings.payday || 25;
+  const nextPaydayOverride = budgetSettings.next_payday_override;
 
   // Calculate financial overview
   const totalAvailable = accounts?.reduce((sum, acc) => {
@@ -53,7 +61,6 @@ export default async function FinancePage() {
 
   // This month spending
   const thisMonthSpent = expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
-  const monthlyBudget = 3000; // TODO: Get from user settings
   const spendingPercentage = (thisMonthSpent / monthlyBudget) * 100;
 
   // Upcoming payments (next 7 days)
@@ -61,8 +68,25 @@ export default async function FinancePage() {
   const nextWeek = new Date(today);
   nextWeek.setDate(today.getDate() + 7);
 
-  // Calculate next payday (assume end of month for now, can be configured later)
-  const nextPayday = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  // Calculate next payday
+  let nextPayday: Date;
+  if (nextPaydayOverride) {
+    // Use override if set
+    nextPayday = new Date(nextPaydayOverride);
+  } else {
+    // Calculate based on payday setting
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    if (currentDay < payday) {
+      // Payday is later this month
+      nextPayday = new Date(currentYear, currentMonth, payday);
+    } else {
+      // Payday is next month
+      nextPayday = new Date(currentYear, currentMonth + 1, payday);
+    }
+  }
 
   const upcomingBNPL = bnpl?.filter(b => {
     if (!b.next_due_date) return false;
