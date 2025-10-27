@@ -14,6 +14,8 @@ export type AccountType = 'savings' | 'checking' | 'credit_card' | 'bnpl' | 'ewa
 export type PaymentMethodType = 'qr_code' | 'apple_pay_tap' | 'physical_card_tap' | 'apple_pay_online' | 'bank_transfer' | 'fpx' | 'cash';
 export type BNPLStatus = 'active' | 'completed' | 'overdue';
 export type CreditCardStatus = 'pending' | 'paid' | 'overdue';
+export type DebtType = 'they_owe_me' | 'i_owe_them';
+export type FriendDebtStatus = 'pending' | 'paid' | 'cancelled';
 
 export interface UserSettings {
   id: string;
@@ -181,6 +183,21 @@ export interface CreditCard {
   updated_at: string;
 }
 
+export interface FriendDebt {
+  id: string;
+  user_id: string;
+  friend_name: string;
+  amount: number;
+  debt_type: DebtType;
+  description?: string;
+  related_expense_id?: string;
+  status: FriendDebtStatus;
+  due_date?: string;
+  settled_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Database tables type
 export interface Database {
   public: {
@@ -249,6 +266,11 @@ export interface Database {
         Row: CreditCard;
         Insert: Omit<CreditCard, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<CreditCard, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      friend_debts: {
+        Row: FriendDebt;
+        Insert: Omit<FriendDebt, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<FriendDebt, 'id' | 'created_at' | 'updated_at'>>;
       };
     };
   };

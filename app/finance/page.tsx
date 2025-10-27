@@ -10,7 +10,8 @@ import {
   Wallet,
   AlertCircle,
   TrendingUp,
-  Calendar
+  Calendar,
+  Users
 } from 'lucide-react';
 
 export default async function FinancePage() {
@@ -28,6 +29,7 @@ export default async function FinancePage() {
     { data: bnpl },
     { data: creditCards },
     { data: userSettings },
+    { data: friendDebts },
   ] = await Promise.all([
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('is_active', true),
     supabase.from('expenses').select('*').eq('user_id', user.id)
@@ -36,6 +38,7 @@ export default async function FinancePage() {
     supabase.from('bnpl').select('*').eq('user_id', user.id).eq('status', 'active'),
     supabase.from('credit_cards').select('*').eq('user_id', user.id).eq('status', 'pending'),
     supabase.from('user_settings').select('budget_settings').eq('user_id', user.id).single(),
+    supabase.from('friend_debts').select('*').eq('user_id', user.id).eq('status', 'pending'),
   ]);
 
   // Get budget settings
@@ -121,6 +124,11 @@ export default async function FinancePage() {
     if (availableToSpend < 500) return 'text-orange-600';
     return 'text-green-600';
   };
+
+  // Friend debts summary
+  const theyOweMe = friendDebts?.filter(d => d.debt_type === 'they_owe_me').reduce((sum, d) => sum + d.amount, 0) || 0;
+  const iOweThem = friendDebts?.filter(d => d.debt_type === 'i_owe_them').reduce((sum, d) => sum + d.amount, 0) || 0;
+  const friendDebtsNet = theyOweMe - iOweThem;
 
   return (
     <div className="space-y-6">
@@ -278,6 +286,22 @@ export default async function FinancePage() {
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 {creditCards?.length || 0} pending
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/finance/friends">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4" />
+                Friend Debts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-sm font-semibold ${friendDebtsNet >= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                {friendDebtsNet >= 0 ? '+' : ''}{formatCurrency(friendDebtsNet)} net
               </p>
             </CardContent>
           </Card>
