@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Filter, Calendar } from 'lucide-react';
 import Link from 'next/link';
+import { TransactionDetailModal } from '@/components/finance/TransactionDetailModal';
 
 const categoryEmojis: Record<string, string> = {
   food: '🍔',
@@ -17,12 +18,21 @@ const categoryEmojis: Record<string, string> = {
   other: '📦',
 };
 
+const categoryLabels: Record<string, string> = {
+  food: 'Food',
+  transport: 'Transport',
+  girlfriend: 'Girlfriend',
+  shopping: 'Shopping',
+  bills: 'Bills',
+  other: 'Other',
+};
+
 const paymentMethodLabels: Record<string, string> = {
-  qr_code: 'QR Code',
-  apple_pay_tap: 'Apple Pay Tap',
-  physical_card_tap: 'Card Tap',
-  apple_pay_online: 'Apple Pay Online',
-  bank_transfer: 'Bank Transfer',
+  qr_code: 'QR',
+  apple_pay_tap: 'Apple Pay',
+  physical_card_tap: 'Card',
+  apple_pay_online: 'Apple Pay',
+  bank_transfer: 'Transfer',
   fpx: 'FPX',
   cash: 'Cash',
 };
@@ -31,6 +41,8 @@ export default function TransactionsPage() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedExpense, setSelectedExpense] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     fetchExpenses();
@@ -59,6 +71,20 @@ export default function TransactionsPage() {
       setExpenses(data);
     }
     setLoading(false);
+  }
+
+  function handleExpenseClick(expense: any) {
+    setSelectedExpense(expense);
+    setModalOpen(true);
+  }
+
+  function handleModalClose() {
+    setModalOpen(false);
+    setSelectedExpense(null);
+  }
+
+  function handleDeleted() {
+    fetchExpenses(); // Refresh list
   }
 
   // Group expenses by date
@@ -134,7 +160,11 @@ export default function TransactionsPage() {
 
                 <div className="space-y-2">
                   {dayExpenses.map((expense) => (
-                    <Card key={expense.id} className="hover:shadow-md transition-shadow">
+                    <Card
+                      key={expense.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleExpenseClick(expense)}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3">
                           {/* Category Icon */}
@@ -144,27 +174,29 @@ export default function TransactionsPage() {
 
                           {/* Expense Details */}
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold truncate">
-                              {expense.merchant_name || expense.description || expense.category}
-                            </p>
+                            <div className="flex items-baseline gap-2">
+                              <p className="font-semibold truncate">
+                                {expense.merchant_name || expense.description || 'Expense'}
+                              </p>
+                            </div>
                             {expense.description && expense.merchant_name && (
-                              <p className="text-xs text-muted-foreground truncate">
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">
                                 {expense.description}
                               </p>
                             )}
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 flex-wrap">
+                              <span className="capitalize">{categoryLabels[expense.category]}</span>
                               {expense.accounts && (
-                                <span className="flex items-center gap-1">
-                                  {expense.accounts.icon && <span>{expense.accounts.icon}</span>}
-                                  <span>{expense.accounts.provider}</span>
-                                </span>
+                                <>
+                                  <span>•</span>
+                                  <span>{expense.accounts.icon} {expense.accounts.provider}</span>
+                                </>
                               )}
-                              {expense.payment_methods && expense.accounts && <span>•</span>}
                               {expense.payment_methods && (
-                                <span>{paymentMethodLabels[expense.payment_methods.method_type]}</span>
-                              )}
-                              {!expense.accounts && !expense.payment_methods && (
-                                <span className="capitalize">{expense.category}</span>
+                                <>
+                                  <span>•</span>
+                                  <span>{paymentMethodLabels[expense.payment_methods.method_type]}</span>
+                                </>
                               )}
                             </div>
                           </div>
@@ -196,6 +228,16 @@ export default function TransactionsPage() {
           <Plus className="h-6 w-6" />
         </Link>
       </Button>
+
+      {/* Transaction Detail Modal */}
+      {selectedExpense && (
+        <TransactionDetailModal
+          expense={selectedExpense}
+          open={modalOpen}
+          onOpenChange={handleModalClose}
+          onDeleted={handleDeleted}
+        />
+      )}
     </div>
   );
 }
