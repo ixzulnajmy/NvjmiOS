@@ -13,9 +13,7 @@ import {
   Wallet,
   AlertCircle,
   TrendingUp,
-  Calendar,
-  RefreshCw,
-  ArrowUpRight,
+  Plus,
 } from 'lucide-react';
 
 export default async function FinancePage() {
@@ -32,6 +30,7 @@ export default async function FinancePage() {
     { data: expenses },
     { data: bnpl },
     { data: creditCards },
+    { data: recentTransactions },
   ] = await Promise.all([
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('is_active', true),
     supabase.from('expenses').select('*').eq('user_id', user.id)
@@ -39,6 +38,10 @@ export default async function FinancePage() {
       .lte('date', new Date().toISOString().split('T')[0]),
     supabase.from('bnpl').select('*').eq('user_id', user.id).eq('status', 'active'),
     supabase.from('credit_cards').select('*').eq('user_id', user.id).eq('status', 'pending'),
+    supabase.from('expenses').select('*, accounts(name, icon, color)').eq('user_id', user.id)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
 
   // Calculate financial overview
@@ -104,11 +107,11 @@ export default async function FinancePage() {
   };
 
   const quickActions = [
+    { icon: 'Plus', label: 'Add', href: '/finance/transactions/new' },
     { icon: 'Wallet', label: 'Accounts', href: '/finance/accounts' },
-    { icon: 'BarChart3', label: 'Wealth', href: '/finance' },
-    { icon: 'Users', label: 'Friends', href: '/finance/friends' },
+    { icon: 'Users', label: 'IOU', href: '/finance/iou' },
+    { icon: 'BarChart3', label: 'Categories', href: '/finance/categories' },
     { icon: 'Settings', label: 'Settings', href: '/finance/settings' },
-    { icon: 'Plus', label: 'Add', href: '/finance/expenses?action=add' },
   ];
 
   return (
@@ -143,48 +146,23 @@ export default async function FinancePage() {
             </p>
           </div>
 
-          {/* Net Worth */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-text-secondary">Net Worth</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className={`text-2xl font-bold ${netWorth >= 0 ? 'text-success' : 'text-error'}`}>
-                  {formatCurrency(netWorth)}
-                </h3>
-                <div className="flex items-center gap-1 text-success text-sm">
-                  <ArrowUpRight className="h-4 w-4" />
-                  <span>+5.5%</span>
-                </div>
-              </div>
-              <p className="text-xs text-text-secondary mt-1">Last Week</p>
+          {/* Stats Grid - 3 columns */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center p-3 glass-light rounded-lg">
+              <p className="text-xs text-text-secondary mb-1">Net Worth</p>
+              <p className={`text-lg font-bold ${netWorth >= 0 ? 'text-success' : 'text-error'}`}>
+                {formatCurrency(netWorth)}
+              </p>
             </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Link href="/finance/transactions/new" className="flex-1">
-              <Button3D variant="primary" className="w-full">
-                Deposit
-              </Button3D>
-            </Link>
-            <Link href="/finance/expenses?action=add" className="flex-1">
-              <Button3D variant="secondary" className="w-full">
-                Send
-              </Button3D>
-            </Link>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
-            <div>
-              <p className="text-xs text-text-secondary">In Accounts</p>
-              <p className="text-xl font-bold text-white">
+            <div className="text-center p-3 glass-light rounded-lg">
+              <p className="text-xs text-text-secondary mb-1">In Accounts</p>
+              <p className="text-lg font-bold text-white">
                 {formatCurrency(totalAvailable)}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-text-secondary">Total Owed</p>
-              <p className="text-xl font-bold text-error">
+            <div className="text-center p-3 glass-light rounded-lg">
+              <p className="text-xs text-text-secondary mb-1">Total Owed</p>
+              <p className="text-lg font-bold text-error">
                 {formatCurrency(totalOwed)}
               </p>
             </div>
@@ -250,56 +228,56 @@ export default async function FinancePage() {
         </div>
       </GlassCard>
 
-      {/* Transaction Categories Section */}
+      {/* Recent Transactions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-lg font-semibold text-white">Transaction</h3>
+          <h3 className="text-lg font-semibold text-white">Recent Transactions</h3>
           <Link href="/finance/transactions" className="text-xs text-text-secondary hover:text-white transition-colors">
-            See more →
+            View All →
           </Link>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          <Link href="/finance/accounts">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <Wallet className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">E-wallet</span>
+        {recentTransactions && recentTransactions.length > 0 ? (
+          <GlassCard variant="strong">
+            <div className="space-y-2">
+              {recentTransactions.map((txn: any) => (
+                <div key={txn.id} className="flex items-center justify-between p-3 glass-light rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
+                      style={{ backgroundColor: txn.accounts?.color || '#3b82f6' }}
+                    >
+                      {txn.accounts?.icon || '💰'}
+                    </div>
+                    <div>
+                      <p className="font-medium text-white text-sm">
+                        {txn.merchant_name || txn.description || 'Transaction'}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {txn.category} • {new Date(txn.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-error font-bold">
+                    -{formatCurrency(txn.amount)}
+                  </p>
+                </div>
+              ))}
             </div>
-          </Link>
-          <Link href="/finance/bnpl">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <RefreshCw className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Top Up</span>
+          </GlassCard>
+        ) : (
+          <GlassCard variant="strong">
+            <div className="text-center py-8">
+              <Receipt className="h-12 w-12 text-text-secondary mx-auto mb-3" />
+              <p className="text-text-secondary">No transactions yet</p>
+              <Link href="/finance/transactions/new" className="mt-3 inline-block">
+                <Button3D variant="primary">
+                  <Plus className="h-4 w-4 mr-2 inline" />
+                  Add Transaction
+                </Button3D>
+              </Link>
             </div>
-          </Link>
-          <Link href="/finance/credit-cards">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <CreditCard className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Card</span>
-            </div>
-          </Link>
-          <Link href="/finance/transactions">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <Receipt className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Power</span>
-            </div>
-          </Link>
-          <Link href="/finance/accounts">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Bank</span>
-            </div>
-          </Link>
-        </div>
+          </GlassCard>
+        )}
       </div>
     </div>
   );
