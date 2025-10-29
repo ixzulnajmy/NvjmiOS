@@ -3,10 +3,10 @@ import { WeddingCountdown } from '@/components/dashboard/WeddingCountdown';
 import { DebtSummary } from '@/components/dashboard/DebtSummary';
 import { PrayerStatus } from '@/components/dashboard/PrayerStatus';
 import { TodaySpending } from '@/components/dashboard/TodaySpending';
-import { QuickActionsGrid } from '@/components/ui/quick-actions-grid';
+import { DashboardQuickActions } from '@/components/dashboard/DashboardQuickActions';
 import { GlassCard } from '@/components/ui/glass-card';
 import { getGreeting, formatDate } from '@/lib/utils';
-import { Clock, DollarSign, CheckSquare, BarChart3, Plus, Sparkles } from 'lucide-react';
+import { Clock, Sparkles } from 'lucide-react';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -21,14 +21,6 @@ export default async function DashboardPage() {
     .getMinutes()
     .toString()
     .padStart(2, '0')}`;
-
-  const quickActions = [
-    { icon: Clock, label: 'Time', href: '/dashboard/time', color: '#38bdf8' },
-    { icon: DollarSign, label: 'Finance', href: '/finance', color: '#34d399' },
-    { icon: CheckSquare, label: 'Tasks', href: '/dashboard/tasks', color: '#f472b6' },
-    { icon: BarChart3, label: 'Stats', href: '/finance', color: '#a855f7' },
-    { icon: Plus, label: 'Add', href: '/finance/expenses?action=add', color: '#facc15' },
-  ];
 
   return (
     <div className="space-y-8 pb-10">
@@ -65,11 +57,7 @@ export default async function DashboardPage() {
       </GlassCard>
 
       {/* Quick Actions Grid */}
-      <QuickActionsGrid
-        title="Quick Actions"
-        actions={quickActions}
-        showSeeAll={false}
-      />
+      <DashboardQuickActions />
 
       {/* Wedding Countdown */}
       <WeddingCountdown />

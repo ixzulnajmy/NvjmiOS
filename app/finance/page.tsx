@@ -1,6 +1,6 @@
 import { GlassCard } from '@/components/ui/glass-card';
 import { CircleBackButton } from '@/components/ui/circle-back-button';
-import { QuickActionsGrid } from '@/components/ui/quick-actions-grid';
+import { FinanceQuickActions } from '@/components/finance/FinanceQuickActions';
 import { Button3D } from '@/components/ui/button-3d';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
@@ -14,12 +14,8 @@ import {
   AlertCircle,
   TrendingUp,
   Calendar,
-  Users,
   RefreshCw,
-  Plus,
-  BarChart3,
   ArrowUpRight,
-  Settings
 } from 'lucide-react';
 
 export default async function FinancePage() {
@@ -107,14 +103,6 @@ export default async function FinancePage() {
     return 'text-success';
   };
 
-  const quickActions = [
-    { icon: Wallet, label: 'Accounts', href: '/finance/accounts' },
-    { icon: BarChart3, label: 'Wealth', href: '/finance' },
-    { icon: Users, label: 'Friends', href: '/finance/friends' },
-    { icon: Settings, label: 'Settings', href: '/finance/settings' },
-    { icon: Plus, label: 'Add', href: '/finance/expenses?action=add' },
-  ];
-
   return (
     <div className="space-y-6 pb-6">
       {/* Header with Back Button */}
@@ -127,11 +115,7 @@ export default async function FinancePage() {
       </div>
 
       {/* Quick Actions */}
-      <QuickActionsGrid
-        title="Quick Actions"
-        actions={quickActions}
-        showSeeAll={false}
-      />
+      <FinanceQuickActions />
 
       {/* Hero Balance Section with Available to Spend */}
       <GlassCard variant="strong" className="bg-gradient-to-br from-green-900/20 to-blue-900/20">
