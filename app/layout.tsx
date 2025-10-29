@@ -62,7 +62,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
         <meta name="msapplication-TileColor" content="#000000" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased dark ios-liquid-bg">
         {children}
       </body>
     </html>

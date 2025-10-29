@@ -15,13 +15,16 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-app-bg safe-bottom">
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
+    <div className="relative min-h-screen overflow-hidden">
+      <div className="liquid-backdrop" />
+      <div className="liquid-grid" />
+      <div className="liquid-orb top-[-180px] left-[-120px]" />
+      <div className="liquid-orb liquid-orb--secondary bottom-[-220px] right-[-140px]" />
+
+      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-3xl flex-col px-5 pb-36 pt-12 sm:px-8">
         {children}
       </main>
 
-      {/* Floating Navigation - iOS 26 Liquid Glass */}
       <FloatingNavbar />
     </div>
   );
