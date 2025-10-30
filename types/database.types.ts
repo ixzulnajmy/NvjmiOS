@@ -1,7 +1,23 @@
 // Database Types - matches Supabase schema
 
 export type DebtCategory = 'credit_card' | 'installment' | 'paylater' | 'loan' | 'insurance' | 'other';
-export type ExpenseCategory = 'food' | 'transport' | 'girlfriend' | 'shopping' | 'bills' | 'other';
+export type ExpenseCategory =
+  | 'food'
+  | 'transport'
+  | 'girlfriend'
+  | 'shopping'
+  | 'bills'
+  | 'other'
+  | 'salary'
+  | 'investments'
+  | 'gifts'
+  | 'subscriptions'
+  | 'health'
+  | 'entertainment'
+  | 'groceries'
+  | 'travel';
+
+export type TransactionType = 'expense' | 'income' | 'transfer';
 export type TimeCategory = 'deep_work' | 'meetings' | 'learning' | 'ibadah' | 'girlfriend' | 'family' | 'exercise' | 'eating' | 'commute' | 'social_media' | 'entertainment' | 'sleep' | 'other';
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type TaskListType = 'today' | 'someday' | 'work' | 'personal' | 'groceries' | 'goals';
@@ -53,13 +69,18 @@ export interface Expense {
   id: string;
   user_id: string;
   amount: number;
+  transaction_type: TransactionType;
   category: ExpenseCategory;
+  item_name?: string;
   merchant_name?: string;
   description?: string;
   date: string;
+  occurred_at?: string;
   receipt_url?: string;
   account_id?: string;
   payment_method_id?: string;
+  payment_channel?: string;
+  counterparty_type?: string;
   sort_order: number;
   created_at: string;
   updated_at: string;
