@@ -1,21 +1,22 @@
+import Link from 'next/link';
 import { GlassCard } from '@/components/ui/glass-card';
 import { CircleBackButton } from '@/components/ui/circle-back-button';
 import { FinanceQuickActions } from '@/components/finance/FinanceQuickActions';
 import { Button3D } from '@/components/ui/button-3d';
 import { Progress } from '@/components/ui/progress';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrency } from '@/lib/utils';
-import {
-  DollarSign,
+import type {
+  Account,
+  BNPL,
   CreditCard,
-  Receipt,
-  Wallet,
+  Expense,
+  PaymentMethod,
+} from '@/types/database.types';
+import {
   AlertCircle,
-  TrendingUp,
-  Calendar,
-  RefreshCw,
   ArrowUpRight,
+  TrendingUp,
 } from 'lucide-react';
 
 export default async function FinancePage() {
@@ -34,11 +35,27 @@ export default async function FinancePage() {
     { data: creditCards },
   ] = await Promise.all([
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('is_active', true),
-    supabase.from('expenses').select('*').eq('user_id', user.id)
+    supabase
+      .from('expenses')
+      .select(
+        `*,
+        accounts:accounts(id, name, provider, account_type),
+        payment_methods:payment_methods(id, method_type)
+      `
+      )
+      .eq('user_id', user.id)
       .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
       .lte('date', new Date().toISOString().split('T')[0]),
-    supabase.from('bnpl').select('*').eq('user_id', user.id).eq('status', 'active'),
-    supabase.from('credit_cards').select('*').eq('user_id', user.id).eq('status', 'pending'),
+    supabase
+      .from('bnpl')
+      .select(`*, accounts:accounts(id, name, provider, account_type)`)
+      .eq('user_id', user.id)
+      .eq('status', 'active'),
+    supabase
+      .from('credit_cards')
+      .select(`*, accounts:accounts(id, name, provider, account_type)`)
+      .eq('user_id', user.id)
+      .eq('status', 'pending'),
   ]);
 
   // Calculate financial overview
@@ -101,6 +118,208 @@ export default async function FinancePage() {
     if (availableToSpend < 0) return 'text-error';
     if (availableToSpend < 500) return 'text-orange-400';
     return 'text-success';
+  };
+
+  const paymentMethodLabels: Record<string, string> = {
+    qr_code: 'QR Code',
+    apple_pay_tap: 'Apple Pay • NFC',
+    physical_card_tap: 'Physical Card',
+    apple_pay_online: 'Apple Pay • Web',
+    bank_transfer: 'Bank Transfer',
+    fpx: 'FPX',
+    cash: 'Cash',
+  };
+
+  const paymentChannelLabels: Record<string, string> = {
+    mae_qr: 'MAE QR',
+    apple_pay_nfc: 'Apple Pay • NFC',
+    uob_one_credit: 'UOB One Credit Card',
+    apple_pay_web: 'Apple Pay • Web',
+    fpx_maybank2u: 'FPX Maybank2u',
+    bank_transfer: 'Bank Transfer',
+    cash: 'Cash',
+    other: 'Other',
+  };
+
+  const categoryEmojis: Record<string, string> = {
+    food: '🍜',
+    transport: '🛵',
+    girlfriend: '💝',
+    shopping: '🛍️',
+    bills: '🧾',
+    other: '🪄',
+    salary: '💼',
+    investments: '📈',
+    gifts: '🎁',
+    subscriptions: '🔁',
+    health: '💊',
+    entertainment: '🎬',
+    groceries: '🛒',
+    travel: '✈️',
+  };
+
+  type AccountSummary = Pick<Account, 'id' | 'name' | 'provider' | 'account_type'>;
+  type PaymentMethodSummary = Pick<PaymentMethod, 'id' | 'method_type'>;
+  type ExpenseWithRelations = Expense & {
+    accounts?: AccountSummary | null;
+    payment_methods?: PaymentMethodSummary | null;
+  };
+  type BNPLWithAccount = BNPL & { accounts?: AccountSummary | null };
+  type CreditCardWithAccount = CreditCard & { accounts?: AccountSummary | null };
+
+  type CombinedTransaction = {
+    id: string;
+    title: string;
+    subtitle?: string;
+    occurredAt: Date;
+    amount: number;
+    direction: 'inflow' | 'outflow' | 'neutral';
+    type: 'expense' | 'income' | 'transfer' | 'bnpl' | 'credit';
+    href: string;
+    accent: string;
+    meta?: string;
+  };
+
+  const toShortDate = (date: Date) =>
+    date.toLocaleDateString('en-MY', { month: 'short', day: 'numeric' });
+
+  const toShortTime = (date: Date) =>
+    date.toLocaleTimeString('en-MY', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const expensesWithRelations = (expenses ?? []) as ExpenseWithRelations[];
+  const bnplWithAccounts = (bnpl ?? []) as BNPLWithAccount[];
+  const creditWithAccounts = (creditCards ?? []) as CreditCardWithAccount[];
+
+  const expenseTransactions: CombinedTransaction[] = expensesWithRelations
+    .map((expense) => {
+      const occurredAt = expense.occurred_at
+        ? new Date(expense.occurred_at)
+        : new Date(`${expense.date}T00:00:00`);
+
+      if (Number.isNaN(occurredAt.getTime())) {
+        return null;
+      }
+
+      const emoji = categoryEmojis[expense.category] ?? '💳';
+      const baseTitle = expense.item_name || expense.merchant_name || 'Transaction';
+      const title = `${emoji} ${baseTitle}`;
+
+      const detailParts = [
+        expense.transaction_type === 'income'
+          ? 'Income'
+          : expense.transaction_type === 'transfer'
+          ? 'Transfer'
+          : 'Expense',
+        expense.category ? expense.category.replace(/_/g, ' ') : undefined,
+        expense.merchant_name && expense.merchant_name !== baseTitle
+          ? expense.merchant_name
+          : undefined,
+        expense.payment_channel
+          ? paymentChannelLabels[expense.payment_channel] || expense.payment_channel
+          : undefined,
+        expense.payment_methods?.method_type
+          ? paymentMethodLabels[expense.payment_methods.method_type] || expense.payment_methods.method_type
+          : undefined,
+        expense.accounts?.name || expense.accounts?.provider,
+      ].filter(Boolean);
+
+      const subtitle = detailParts.join(' • ');
+      const direction =
+        expense.transaction_type === 'income'
+          ? 'inflow'
+          : expense.transaction_type === 'transfer'
+          ? 'neutral'
+          : 'outflow';
+
+      return {
+        id: `expense-${expense.id}`,
+        title,
+        subtitle,
+        occurredAt,
+        amount: expense.amount,
+        direction,
+        type: expense.transaction_type,
+        href: `/finance/transactions/${expense.id}/edit`,
+        accent:
+          expense.transaction_type === 'income'
+            ? 'bg-success/20 text-success'
+            : expense.transaction_type === 'transfer'
+            ? 'bg-blue-400/20 text-blue-200'
+            : 'bg-error/15 text-error',
+        meta: `${toShortDate(occurredAt)} • ${toShortTime(occurredAt)}`,
+      } satisfies CombinedTransaction;
+    })
+    .filter(Boolean) as CombinedTransaction[];
+
+  const bnplTransactions: CombinedTransaction[] = bnplWithAccounts
+    .filter((plan) => plan.next_due_date)
+    .map((plan) => {
+      const occurredAt = new Date(`${plan.next_due_date}T00:00:00`);
+      if (Number.isNaN(occurredAt.getTime())) {
+        return null;
+      }
+
+      const subtitleParts = [
+        `Installment ${Math.min(plan.installments_paid + 1, plan.installments_total)} / ${plan.installments_total}`,
+        plan.accounts?.name || plan.accounts?.provider,
+      ].filter(Boolean);
+
+      return {
+        id: `bnpl-${plan.id}`,
+        title: `🌀 ${plan.merchant}`,
+        subtitle: subtitleParts.join(' • '),
+        occurredAt,
+        amount: plan.installment_amount,
+        direction: 'outflow',
+        type: 'bnpl',
+        href: `/finance/bnpl/${plan.id}/edit`,
+        accent: 'bg-purple-500/20 text-purple-200',
+        meta: `Due ${toShortDate(occurredAt)}`,
+      } satisfies CombinedTransaction;
+    })
+    .filter(Boolean) as CombinedTransaction[];
+
+  const creditTransactions: CombinedTransaction[] = creditWithAccounts
+    .map((card) => {
+      const occurredAt = new Date(`${card.due_date}T00:00:00`);
+      if (Number.isNaN(occurredAt.getTime())) {
+        return null;
+      }
+
+      const subtitleParts = [
+        card.accounts?.name || card.accounts?.provider || 'Credit Card',
+        card.notes,
+      ].filter(Boolean);
+
+      return {
+        id: `credit-${card.id}`,
+        title: '💳 Credit Card Payment',
+        subtitle: subtitleParts.join(' • '),
+        occurredAt,
+        amount: card.minimum_payment,
+        direction: 'outflow',
+        type: 'credit',
+        href: '/finance/credit-cards',
+        accent: 'bg-sky-500/20 text-sky-200',
+        meta: `Due ${toShortDate(occurredAt)}`,
+      } satisfies CombinedTransaction;
+    })
+    .filter(Boolean) as CombinedTransaction[];
+
+  const recentTransactions = [...expenseTransactions, ...bnplTransactions, ...creditTransactions]
+    .filter((transaction) => transaction.occurredAt)
+    .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
+    .slice(0, 6);
+
+  const typeLabels: Record<CombinedTransaction['type'], string> = {
+    expense: 'Expense',
+    income: 'Income',
+    transfer: 'Transfer',
+    bnpl: 'BNPL',
+    credit: 'Credit',
   };
 
   return (
@@ -238,56 +457,65 @@ export default async function FinancePage() {
         </div>
       </GlassCard>
 
-      {/* Transaction Categories Section */}
+      {/* Recent Transactions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-lg font-semibold text-white">Transaction</h3>
+          <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
           <Link href="/finance/transactions" className="text-xs text-text-secondary hover:text-white transition-colors">
             See more →
           </Link>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          <Link href="/finance/accounts">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <Wallet className="h-6 w-6 text-white" />
+        <GlassCard variant="strong" className="p-0" hover={false}>
+          <div className="divide-y divide-white/5">
+            {recentTransactions.length === 0 ? (
+              <div className="px-5 py-6 text-sm text-text-secondary">
+                No activity logged yet. Start by adding a transaction, BNPL plan, or credit payment.
               </div>
-              <span className="text-xs text-text-secondary text-center">E-wallet</span>
-            </div>
-          </Link>
-          <Link href="/finance/bnpl">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <RefreshCw className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Top Up</span>
-            </div>
-          </Link>
-          <Link href="/finance/credit-cards">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <CreditCard className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Card</span>
-            </div>
-          </Link>
-          <Link href="/finance/transactions">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <Receipt className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Power</span>
-            </div>
-          </Link>
-          <Link href="/finance/accounts">
-            <div className="flex flex-col items-center gap-2 min-w-[64px]">
-              <div className="glass-light rounded-full w-14 h-14 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-text-secondary text-center">Bank</span>
-            </div>
-          </Link>
-        </div>
+            ) : (
+              recentTransactions.map((transaction) => {
+                const isInflow = transaction.direction === 'inflow';
+                const isNeutral = transaction.direction === 'neutral';
+                const amountLabel = formatCurrency(transaction.amount);
+
+                return (
+                  <Link
+                    key={transaction.id}
+                    href={transaction.href}
+                    className="flex items-center gap-4 px-5 py-4 transition-colors duration-300 hover:bg-white/5"
+                  >
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-semibold text-white truncate">
+                          {transaction.title}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${transaction.accent}`}
+                        >
+                          {typeLabels[transaction.type]}
+                        </span>
+                      </div>
+                      {transaction.subtitle && (
+                        <p className="text-xs text-text-secondary line-clamp-1">{transaction.subtitle}</p>
+                      )}
+                      {transaction.meta && (
+                        <p className="text-xs text-text-tertiary">{transaction.meta}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p
+                        className={`text-base font-semibold ${
+                          isNeutral ? 'text-blue-200' : isInflow ? 'text-success' : 'text-white'
+                        }`}
+                      >
+                        {isNeutral ? amountLabel : `${isInflow ? '+' : '−'}${amountLabel}`}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </GlassCard>
       </div>
     </div>
   );
