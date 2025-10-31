@@ -32,11 +32,13 @@ export function QuickActionsGrid({
     <div className={cn("space-y-3", className)}>
       {/* Header */}
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-lg font-semibold text-white">{title}</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-white">
+          {title}
+        </h2>
         {showSeeAll && (
           <Link
             href={seeAllHref}
-            className="text-xs text-text-secondary hover:text-white transition-colors"
+            className="text-xs font-medium text-text-secondary transition-colors hover:text-white"
           >
             See All
           </Link>
@@ -63,25 +65,24 @@ function QuickActionButton({ action, index }: { action: QuickAction; index: numb
   return (
     <Link href={action.href}>
       <motion.div
-        className="flex flex-col items-center gap-2 min-w-[64px]"
+        className="group relative flex min-w-[90px] flex-col items-center gap-3"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.05 }}
-        whileHover={{ y: -4 }}
-        whileTap={{ scale: 0.95 }}
+        transition={{ delay: index * 0.05, type: 'spring', stiffness: 260, damping: 22 }}
+        whileHover={{ y: -6 }}
+        whileTap={{ scale: 0.96 }}
       >
-        <motion.div
-          className="glass-light rounded-full w-14 h-14 flex items-center justify-center shadow-lg touch-target"
-          whileHover={{
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
-          }}
-        >
-          <Icon
-            className="h-6 w-6 text-white"
-            style={{ color: action.color }}
-          />
-        </motion.div>
-        <span className="text-xs text-text-secondary text-center leading-tight">
+        <div className="relative flex h-20 w-20 items-center justify-center">
+          <div className="absolute inset-0 rounded-[28px] border border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-500 group-hover:border-white/30 group-hover:bg-white/10" />
+          <div className="absolute -inset-6 rounded-full bg-gradient-to-br from-sky-500/30 via-transparent to-purple-500/30 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-80" />
+          <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-white/80 via-white/30 to-white/10 shadow-[0_10px_24px_rgba(15,23,42,0.45)]">
+            <Icon
+              className="h-6 w-6 text-slate-900"
+              style={{ color: action.color || undefined }}
+            />
+          </div>
+        </div>
+        <span className="text-xs font-medium uppercase tracking-[0.16em] text-text-secondary transition-colors group-hover:text-white">
           {action.label}
         </span>
       </motion.div>

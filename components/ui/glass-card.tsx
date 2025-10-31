@@ -13,46 +13,52 @@ export interface GlassCardProps extends Omit<React.HTMLAttributes<HTMLDivElement
 const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
   ({ className, variant = 'light', hover = true, children, ...props }, ref) => {
     const variantClasses = {
-      light: 'glass-light bg-card-bg/60',
-      strong: 'glass-strong bg-card-bg/80',
-      elevated: 'glass-strong bg-card-elevated/80',
-    };
+      light: 'glass-light bg-white/5',
+      strong: 'glass-strong bg-white/8',
+      elevated: 'glass-strong bg-white/12',
+    } as const;
 
-    const motionProps = hover
-      ? {
-          whileHover: { y: -2, boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)' },
-          transition: { type: 'spring' as const, stiffness: 300, damping: 30 },
-        }
-      : {};
+    const content = (
+      <div className="relative z-10 space-y-3 text-slate-100">
+        {children}
+      </div>
+    );
+
+    const baseClass = cn(
+      'group relative overflow-hidden rounded-[26px] border border-white/10 px-5 py-5 text-white shadow-[0_22px_60px_rgba(2,6,23,0.45)] transition-all duration-300',
+      variantClasses[variant],
+      className
+    );
+
+    const overlayElements = (
+      <>
+        <div className="pointer-events-none absolute inset-px rounded-[24px] border border-white/5" />
+        <div className="pointer-events-none absolute inset-0 rounded-[26px] bg-gradient-to-br from-white/12 via-transparent to-white/5 opacity-70" />
+        <div className="pointer-events-none absolute -inset-40 rotate-6 bg-gradient-to-br from-sky-500/15 via-emerald-400/10 to-transparent blur-3xl transition-opacity duration-700 group-hover:opacity-80" />
+        <div className="pointer-events-none absolute inset-0 rounded-[26px] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_55%)] opacity-0 transition-opacity duration-500 group-hover:opacity-70" />
+      </>
+    );
 
     if (hover) {
       return (
         <motion.div
           ref={ref}
-          className={cn(
-            'rounded-2xl p-4 shadow-lg transition-all',
-            variantClasses[variant],
-            className
-          )}
-          {...motionProps}
+          className={baseClass}
+          whileHover={{ y: -4, scale: 1.01 }}
+          whileTap={{ scale: 0.995 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 30 }}
           {...(props as any)}
         >
-          {children}
+          {overlayElements}
+          {content}
         </motion.div>
       );
     }
 
     return (
-      <div
-        ref={ref}
-        className={cn(
-          'rounded-2xl p-4 shadow-lg transition-all',
-          variantClasses[variant],
-          className
-        )}
-        {...props}
-      >
-        {children}
+      <div ref={ref} className={baseClass} {...props}>
+        {overlayElements}
+        {content}
       </div>
     );
   }

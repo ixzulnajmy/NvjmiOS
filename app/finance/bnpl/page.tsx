@@ -1,204 +1,397 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { createClient } from '@/lib/supabase/server';
-import { formatCurrency } from '@/lib/utils';
-import { Plus, ShoppingBag, Calendar, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { CircleBackButton } from '@/components/ui/circle-back-button';
+import { GlassCard } from '@/components/ui/glass-card';
+import { AddBNPLButton } from '@/components/finance/bnpl/AddBNPLButton';
+import { formatCurrency } from '@/lib/utils';
+import type { BNPL, BNPLInstallment } from '@/types/database.types';
+import {
+  Activity,
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  Sparkles,
+} from 'lucide-react';
+
+interface BNPLAccountSummary {
+  name: string | null;
+  provider: string | null;
+  icon: string | null;
+}
+
+interface BNPLWithAccount extends BNPL {
+  accounts: BNPLAccountSummary | null;
+  installments: BNPLInstallment[];
+}
+
+function toNumber(value: number | string | null | undefined) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return Number(value);
+  return 0;
+}
+
+function calculatePlanMetrics(plan: BNPLWithAccount) {
+  const installments = (plan.installments || []).slice().sort((a, b) => a.sequence - b.sequence);
+  const totalFromSchedule = installments.reduce((sum, inst) => sum + toNumber(inst.amount), 0);
+  const total = installments.length > 0 ? totalFromSchedule : toNumber(plan.total_amount);
+  const totalInstallments = installments.length || Number(plan.installments_total) || 0;
+  const paidInstallments =
+    installments.length > 0
+      ? installments.filter((inst) => inst.is_paid).length
+      : Number(plan.installments_paid) || 0;
+  const remainingInstallments =
+    installments.length > 0
+      ? installments.filter((inst) => !inst.is_paid).length
+      : Math.max(totalInstallments - paidInstallments, 0);
+  const remainingBalance =
+    installments.length > 0
+      ? installments.filter((inst) => !inst.is_paid).reduce((sum, inst) => sum + toNumber(inst.amount), 0)
+      : Math.max(total - toNumber(plan.installment_amount) * paidInstallments, 0);
+  const nextInstallment =
+    installments.find((inst) => !inst.is_paid)?.amount ?? plan.installment_amount ?? 0;
+  const progress =
+    totalInstallments > 0 ? Math.min(100, Math.round((paidInstallments / totalInstallments) * 100)) : 0;
+
+  return {
+    total,
+    installment: toNumber(nextInstallment),
+    totalInstallments,
+    paidInstallments,
+    remainingInstallments,
+    remainingBalance,
+    progress,
+  };
+}
+
+function getDueState(plan: BNPLWithAccount) {
+  if (plan.status === 'completed') {
+    return { label: 'Completed', tone: 'text-emerald-300', dueDate: plan.next_due_date ? new Date(plan.next_due_date) : null };
+  }
+
+  if (!plan.next_due_date) {
+    return {
+      label: plan.status === 'overdue' ? 'Needs attention' : 'No due date set',
+      tone: plan.status === 'overdue' ? 'text-error' : 'text-text-secondary',
+      dueDate: null,
+    };
+  }
+
+  const dueDate = new Date(plan.next_due_date);
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfDue = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  const diff = Math.ceil((startOfDue.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diff < 0 || plan.status === 'overdue') {
+    return { label: `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}`, tone: 'text-error', dueDate };
+  }
+  if (diff === 0) {
+    return { label: 'Due today', tone: 'text-amber-300', dueDate };
+  }
+  if (diff === 1) {
+    return { label: 'Due tomorrow', tone: 'text-amber-300', dueDate };
+  }
+  return {
+    label: `Due in ${diff} days`,
+    tone: diff <= 3 ? 'text-amber-300' : 'text-text-secondary',
+    dueDate,
+  };
+}
+
+const statusStyles: Record<BNPL['status'], string> = {
+  active: 'border-sky-400/25 bg-sky-400/10 text-sky-100',
+  overdue: 'border-red-500/30 bg-red-500/15 text-red-200',
+  completed: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200',
+};
 
 export default async function BNPLPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return null;
   }
 
-  const { data: bnplItems } = await supabase
+  const { data } = await supabase
     .from('bnpl')
-    .select('*, accounts(name, provider)')
+    .select('*, accounts:accounts(name, provider, icon), installments:bnpl_installments(sequence, amount, is_paid, due_date)')
     .eq('user_id', user.id)
-    .order('next_due_date', { ascending: true });
+    .order('next_due_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false });
 
-  const activeBNPL = bnplItems?.filter(item => item.status === 'active') || [];
-  const completedBNPL = bnplItems?.filter(item => item.status === 'completed') || [];
-  const overdueBNPL = bnplItems?.filter(item => item.status === 'overdue') || [];
+  const plans = (data || []) as BNPLWithAccount[];
+  plans.forEach((plan) => {
+    plan.installments = plan.installments ?? [];
+  });
+  const activePlans = plans.filter((plan) => plan.status === 'active');
+  const overduePlans = plans.filter((plan) => plan.status === 'overdue');
+  const completedPlans = plans.filter((plan) => plan.status === 'completed');
 
-  const totalRemaining = activeBNPL.reduce((sum, item) => {
-    const remaining = item.total_amount - (item.installment_amount * item.installments_paid);
-    return sum + remaining;
-  }, 0);
+  const outstanding = activePlans.reduce((sum, plan) => sum + calculatePlanMetrics(plan).remainingBalance, 0);
+  const monthlyInstallments = activePlans.reduce((sum, plan) => sum + calculatePlanMetrics(plan).installment, 0);
+
+  const upcomingPlans = [...overduePlans, ...activePlans]
+    .filter((plan) => plan.next_due_date)
+    .sort((a, b) => {
+      if (!a.next_due_date || !b.next_due_date) return 0;
+      return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+    });
+
+  const highlightedPlan = upcomingPlans[0];
+  const highlightedMetrics = highlightedPlan ? calculatePlanMetrics(highlightedPlan) : null;
+  const hasPlans = plans.length > 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Buy Now Pay Later</h1>
-          <p className="text-muted-foreground">Track your installment purchases</p>
+    <div className="space-y-8 pb-24 pt-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <CircleBackButton />
+          <div>
+            <h1 className="text-3xl font-bold text-white">Buy Now Pay Later</h1>
+            <p className="text-sm text-text-secondary">
+              Monitor every installment commitment with a liquid-glass command center.
+            </p>
+          </div>
         </div>
-        <Button asChild>
-          <Link href="/finance/bnpl/new">
-            <Plus className="h-4 w-4 mr-2" />
-            Add BNPL
-          </Link>
-        </Button>
+        <AddBNPLButton />
       </div>
 
-      {/* Summary Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Active</p>
-            <p className="text-2xl font-bold text-blue-600">{activeBNPL.length}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Total Remaining</p>
-            <p className="text-2xl font-bold text-orange-600">
-              {formatCurrency(totalRemaining)}
+      {!hasPlans ? (
+        <GlassCard variant="light" hover={false} className="flex flex-col items-center gap-5 py-16 text-center">
+          <Sparkles className="h-12 w-12 text-text-secondary" />
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold text-white">No BNPL plans yet</h2>
+            <p className="text-sm text-text-secondary">
+              Capture your first installment purchase to start tracking pay-later commitments effortlessly.
             </p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Completed</p>
-            <p className="text-2xl font-bold text-green-600">{completedBNPL.length}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Overdue Items */}
-      {overdueBNPL.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2 text-red-600">
-            <AlertCircle className="h-5 w-5" />
-            Overdue
-          </h2>
-          <div className="space-y-2">
-            {overdueBNPL.map((item) => (
-              <BNPLCard key={item.id} item={item} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Active BNPL */}
-      {activeBNPL.length > 0 ? (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5" />
-            Active Purchases
-          </h2>
-          <div className="space-y-2">
-            {activeBNPL.map((item) => (
-              <BNPLCard key={item.id} item={item} />
-            ))}
-          </div>
-        </div>
+          <AddBNPLButton />
+        </GlassCard>
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No active BNPL purchases</h3>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Track your installment purchases here
-            </p>
-            <Button asChild>
-              <Link href="/finance/bnpl/new">
-                <Plus className="h-4 w-4 mr-2" />
-                Add BNPL Purchase
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+        <>
+          <GlassCard variant="elevated" hover={false} className="space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-text-secondary">At a glance</p>
+                <h2 className="text-xl font-semibold text-white">Your installment universe</h2>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wider text-text-secondary">Active plans</p>
+                <p className="text-2xl font-semibold text-white">{activePlans.length}</p>
+                <p className="text-xs text-text-secondary">{overduePlans.length} overdue</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wider text-text-secondary">Outstanding balance</p>
+                <p className="text-2xl font-semibold text-white">{formatCurrency(outstanding)}</p>
+                <p className="text-xs text-text-secondary">Across all active plans</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wider text-text-secondary">Monthly commitments</p>
+                <p className="text-2xl font-semibold text-white">{formatCurrency(monthlyInstallments)}</p>
+                <p className="text-xs text-text-secondary">Projected outgoing this cycle</p>
+              </div>
+            </div>
+            {highlightedPlan ? (
+              <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-sky-500/15 via-transparent to-emerald-400/10 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-[0.25em] text-text-secondary">Next payment</p>
+                    <p className="text-lg font-semibold text-white">
+                      {highlightedPlan.item_name || highlightedPlan.merchant}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {highlightedPlan.accounts?.provider && highlightedPlan.accounts?.name
+                        ? `${highlightedPlan.accounts.provider} · ${highlightedPlan.accounts.name}`
+                        : highlightedPlan.accounts?.provider || 'No linked provider'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm uppercase tracking-[0.3em] text-text-secondary">Due amount</p>
+                    <p className="text-xl font-semibold text-white">
+                      {formatCurrency(highlightedMetrics?.installment || toNumber(highlightedPlan.installment_amount))}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {getDueState(highlightedPlan).label}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </GlassCard>
 
-      {/* Completed BNPL */}
-      {completedBNPL.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-muted-foreground">
-            Completed ({completedBNPL.length})
-          </h2>
-          <div className="space-y-2">
-            {completedBNPL.map((item) => (
-              <BNPLCard key={item.id} item={item} completed />
-            ))}
-          </div>
-        </div>
+          {overduePlans.length > 0 && (
+            <GlassCard
+              variant="strong"
+              className="space-y-4 border border-red-500/20 bg-gradient-to-br from-red-500/15 via-transparent to-rose-500/5"
+            >
+              <div className="flex items-center gap-3 text-sm font-semibold text-red-200">
+                <AlertTriangle className="h-5 w-5" />
+                Plans needing attention
+              </div>
+              <div className="space-y-3">
+                {overduePlans.map((plan) => {
+                  const metrics = calculatePlanMetrics(plan);
+                  const due = getDueState(plan);
+                  return (
+                    <Link
+                      key={plan.id}
+                      href={`/finance/bnpl/${plan.id}/edit`}
+                      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                    >
+                      <div className="rounded-2xl border border-red-500/30 bg-white/5 p-4 transition hover:bg-white/10">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold text-white">{plan.item_name || plan.merchant}</p>
+                            <p className="text-xs text-red-200">{due.label}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm uppercase tracking-[0.3em] text-red-200">Due</p>
+                            <p className="text-lg font-semibold text-white">
+                              {formatCurrency(metrics.installment)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-red-200">
+                          <span>
+                            {metrics.paidInstallments}/{metrics.totalInstallments} paid · {formatCurrency(metrics.remainingBalance)} left
+                          </span>
+                          {plan.accounts?.provider && (
+                            <span>• {plan.accounts.provider}</span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </GlassCard>
+          )}
+
+          {activePlans.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm uppercase tracking-[0.25em] text-text-secondary">
+                <Activity className="h-4 w-4" />
+                Active installments
+              </div>
+              <div className="space-y-4">
+                {activePlans.map((plan) => {
+                  const metrics = calculatePlanMetrics(plan);
+                  const due = getDueState(plan);
+                  const statusClass = statusStyles[plan.status];
+
+                  return (
+                    <Link
+                      key={plan.id}
+                      href={`/finance/bnpl/${plan.id}/edit`}
+                      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                    >
+                      <GlassCard className="space-y-4" variant="light">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <p className="text-lg font-semibold text-white">{plan.item_name || plan.merchant}</p>
+                              <span className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${statusClass}`}>
+                                {plan.status}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+                              {plan.accounts?.provider && plan.accounts?.name && (
+                                <span>
+                                  {plan.accounts.provider} · {plan.accounts.name}
+                                </span>
+                              )}
+                              <span>• {metrics.paidInstallments}/{metrics.totalInstallments} paid</span>
+                              <span>• {formatCurrency(metrics.remainingBalance)} left</span>
+                              <span>• {formatCurrency(metrics.installment)} per month</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm uppercase tracking-[0.3em] text-text-secondary">Total</p>
+                            <p className="text-xl font-semibold text-white">{formatCurrency(metrics.total)}</p>
+                            <p className="text-xs text-text-secondary">
+                              {metrics.totalInstallments} × {formatCurrency(metrics.installment)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-emerald-400"
+                              style={{ width: `${metrics.progress}%` }}
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-text-secondary">
+                            <span>{metrics.progress}% complete</span>
+                            <span className={`${due.tone} flex items-center gap-2 text-sm`}> 
+                              <CalendarDays className="h-4 w-4" />
+                              {due.dueDate
+                                ? `${due.label} • ${due.dueDate.toLocaleDateString('en-MY', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                  })}`
+                                : due.label}
+                            </span>
+                          </div>
+                          {plan.notes ? (
+                            <p className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-text-secondary">
+                              {plan.notes}
+                            </p>
+                          ) : null}
+                        </div>
+                      </GlassCard>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {completedPlans.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm uppercase tracking-[0.25em] text-text-secondary">
+                <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                Completed plans
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {completedPlans.map((plan) => {
+                  const metrics = calculatePlanMetrics(plan);
+                  const due = getDueState(plan);
+
+                  return (
+                    <Link
+                      key={plan.id}
+                      href={`/finance/bnpl/${plan.id}/edit`}
+                      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                    >
+                      <GlassCard variant="light" className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold text-white">{plan.item_name || plan.merchant}</p>
+                            <p className="text-xs text-text-secondary">{plan.accounts?.provider || 'Completed'}</p>
+                          </div>
+                          <span className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${statusStyles.completed}`}>
+                            {plan.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm text-text-secondary">
+                          <span>Total paid</span>
+                          <span className="text-white">{formatCurrency(metrics.total)}</span>
+                        </div>
+                        <p className={`text-xs ${due.tone}`}>{due.label}</p>
+                      </GlassCard>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
-  );
-}
-
-function BNPLCard({ item, completed = false }: { item: any; completed?: boolean }) {
-  const progress = (item.installments_paid / item.installments_total) * 100;
-  const remaining = item.total_amount - (item.installment_amount * item.installments_paid);
-
-  const today = new Date();
-  const dueDate = item.next_due_date ? new Date(item.next_due_date) : null;
-  const daysUntilDue = dueDate
-    ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  const isOverdue = item.status === 'overdue';
-  const isDueSoon = daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 3;
-
-  return (
-    <Card className={isOverdue ? 'border-red-200 bg-red-50' : isDueSoon ? 'border-orange-200 bg-orange-50' : ''}>
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="font-semibold">{item.item_name || 'Purchase'}</p>
-              <p className="text-sm text-muted-foreground">{item.merchant}</p>
-              {item.accounts && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  via {item.accounts.provider}
-                </p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="text-lg font-bold">{formatCurrency(item.total_amount)}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatCurrency(item.installment_amount)} × {item.installments_total}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">
-                {item.installments_paid} / {item.installments_total} paid
-              </span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-
-          {!completed && dueDate && (
-            <div className={`flex items-center gap-2 text-sm ${isOverdue ? 'text-red-700' : isDueSoon ? 'text-orange-700' : 'text-muted-foreground'}`}>
-              <Calendar className="h-4 w-4" />
-              {isOverdue ? (
-                <span className="font-medium">Overdue!</span>
-              ) : daysUntilDue === 0 ? (
-                <span className="font-medium">Due today - {formatCurrency(item.installment_amount)}</span>
-              ) : daysUntilDue === 1 ? (
-                <span className="font-medium">Due tomorrow - {formatCurrency(item.installment_amount)}</span>
-              ) : (
-                <span>Next: {formatCurrency(item.installment_amount)} in {daysUntilDue} days</span>
-              )}
-            </div>
-          )}
-
-          {!completed && (
-            <div className="pt-2 border-t">
-              <p className="text-sm font-medium">
-                Remaining: {formatCurrency(remaining)}
-              </p>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }

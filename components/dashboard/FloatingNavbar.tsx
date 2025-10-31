@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, DollarSign, Clock, CheckSquare, Sparkles } from 'lucide-react';
+import { Home, LineChart, Clock, CheckSquare, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -14,8 +14,8 @@ const navItems = [
   },
   {
     name: 'Finance',
-    href: '/dashboard/finance',
-    icon: DollarSign,
+    href: '/finance',
+    icon: LineChart,
   },
   {
     name: 'Time',
@@ -44,12 +44,12 @@ export function FloatingNavbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-3 left-4 right-4 z-50 flex items-center justify-center">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4 sm:px-6">
       <motion.div
-        className="glass-navbar rounded-[24px] h-16 flex items-center justify-around w-full max-w-2xl mx-auto px-2 shadow-2xl"
-        initial={{ y: 100, opacity: 0 }}
+        className="glass-navbar pointer-events-auto relative flex w-full max-w-xl items-center justify-between gap-1 rounded-[28px] border border-white/10 bg-white/10 px-2 py-2"
+        initial={{ y: 96, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 25 }}
+        transition={{ type: "spring", stiffness: 210, damping: 26 }}
       >
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -59,39 +59,47 @@ export function FloatingNavbar() {
             <Link
               key={item.name}
               href={item.href}
-              className="relative flex items-center justify-center flex-1 h-12 touch-target"
+              className="group relative flex flex-1 items-center justify-center"
+              aria-label={item.name}
+              aria-current={isActive ? 'page' : undefined}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 bg-white rounded-full mx-1"
-                  transition={spring}
-                />
-              )}
               <motion.div
                 className={cn(
-                  "relative flex items-center justify-center gap-1.5 px-3 py-2 rounded-full z-10 transition-colors",
-                  isActive ? "text-black" : "text-gray-400"
+                  'relative flex items-center justify-center gap-2 rounded-2xl px-3 py-2 transition-colors',
+                  isActive ? 'text-slate-900' : 'text-slate-300/80'
                 )}
                 whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.94 }}
               >
-                <Icon className={cn("h-5 w-5", isActive ? "text-black" : "text-gray-400")} />
                 {isActive && (
                   <motion.span
-                    className="text-xs font-semibold text-black"
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
+                    layoutId="nav-indicator"
+                    className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/85 via-white/40 to-white/10 shadow-[0_8px_30px_rgba(15,23,42,0.35)]"
                     transition={spring}
-                  >
-                    {item.name}
-                  </motion.span>
+                  />
                 )}
+                <Icon
+                  className={cn(
+                    'relative z-10 h-[22px] w-[22px] transition-colors drop-shadow-[0_6px_12px_rgba(56,189,248,0.25)]',
+                    isActive ? 'text-slate-900' : 'text-white/80'
+                  )}
+                />
+                <motion.span
+                  className={cn(
+                    'relative z-10 text-[11px] font-semibold uppercase tracking-[0.12em]',
+                    isActive ? 'text-slate-900' : 'text-transparent'
+                  )}
+                  initial={false}
+                  animate={{ opacity: isActive ? 1 : 0, width: isActive ? 'auto' : 0 }}
+                  transition={{ ...spring, stiffness: 260 }}
+                >
+                  {item.name}
+                </motion.span>
               </motion.div>
             </Link>
           );
         })}
+        <div className="pointer-events-none absolute inset-0 rounded-[28px] border border-white/10 opacity-60" />
       </motion.div>
     </nav>
   );
