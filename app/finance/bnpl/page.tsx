@@ -4,7 +4,7 @@ import { CircleBackButton } from '@/components/ui/circle-back-button';
 import { GlassCard } from '@/components/ui/glass-card';
 import { AddBNPLButton } from '@/components/finance/bnpl/AddBNPLButton';
 import { formatCurrency } from '@/lib/utils';
-import type { BNPL } from '@/types/database.types';
+import type { BNPL, BNPLInstallment } from '@/types/database.types';
 import {
   Activity,
   AlertTriangle,
@@ -21,6 +21,7 @@ interface BNPLAccountSummary {
 
 interface BNPLWithAccount extends BNPL {
   accounts: BNPLAccountSummary | null;
+  installments: BNPLInstallment[];
 }
 
 function toNumber(value: number | string | null | undefined) {
@@ -30,15 +31,36 @@ function toNumber(value: number | string | null | undefined) {
 }
 
 function calculatePlanMetrics(plan: BNPLWithAccount) {
-  const total = toNumber(plan.total_amount);
-  const installment = toNumber(plan.installment_amount);
-  const totalInstallments = Number(plan.installments_total) || 0;
-  const paidInstallments = Number(plan.installments_paid) || 0;
-  const remainingInstallments = Math.max(totalInstallments - paidInstallments, 0);
-  const remainingBalance = Math.max(total - installment * paidInstallments, 0);
-  const progress = totalInstallments > 0 ? Math.min(100, Math.round((paidInstallments / totalInstallments) * 100)) : 0;
+  const installments = (plan.installments || []).slice().sort((a, b) => a.sequence - b.sequence);
+  const totalFromSchedule = installments.reduce((sum, inst) => sum + toNumber(inst.amount), 0);
+  const total = installments.length > 0 ? totalFromSchedule : toNumber(plan.total_amount);
+  const totalInstallments = installments.length || Number(plan.installments_total) || 0;
+  const paidInstallments =
+    installments.length > 0
+      ? installments.filter((inst) => inst.is_paid).length
+      : Number(plan.installments_paid) || 0;
+  const remainingInstallments =
+    installments.length > 0
+      ? installments.filter((inst) => !inst.is_paid).length
+      : Math.max(totalInstallments - paidInstallments, 0);
+  const remainingBalance =
+    installments.length > 0
+      ? installments.filter((inst) => !inst.is_paid).reduce((sum, inst) => sum + toNumber(inst.amount), 0)
+      : Math.max(total - toNumber(plan.installment_amount) * paidInstallments, 0);
+  const nextInstallment =
+    installments.find((inst) => !inst.is_paid)?.amount ?? plan.installment_amount ?? 0;
+  const progress =
+    totalInstallments > 0 ? Math.min(100, Math.round((paidInstallments / totalInstallments) * 100)) : 0;
 
-  return { total, installment, totalInstallments, paidInstallments, remainingInstallments, remainingBalance, progress };
+  return {
+    total,
+    installment: toNumber(nextInstallment),
+    totalInstallments,
+    paidInstallments,
+    remainingInstallments,
+    remainingBalance,
+    progress,
+  };
 }
 
 function getDueState(plan: BNPLWithAccount) {
@@ -94,12 +116,15 @@ export default async function BNPLPage() {
 
   const { data } = await supabase
     .from('bnpl')
-    .select('*, accounts:accounts(name, provider, icon)')
+    .select('*, accounts:accounts(name, provider, icon), installments:bnpl_installments(sequence, amount, is_paid, due_date)')
     .eq('user_id', user.id)
     .order('next_due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
 
   const plans = (data || []) as BNPLWithAccount[];
+  plans.forEach((plan) => {
+    plan.installments = plan.installments ?? [];
+  });
   const activePlans = plans.filter((plan) => plan.status === 'active');
   const overduePlans = plans.filter((plan) => plan.status === 'overdue');
   const completedPlans = plans.filter((plan) => plan.status === 'completed');
@@ -115,6 +140,7 @@ export default async function BNPLPage() {
     });
 
   const highlightedPlan = upcomingPlans[0];
+  const highlightedMetrics = highlightedPlan ? calculatePlanMetrics(highlightedPlan) : null;
   const hasPlans = plans.length > 0;
 
   return (
@@ -186,7 +212,7 @@ export default async function BNPLPage() {
                   <div className="text-right">
                     <p className="text-sm uppercase tracking-[0.3em] text-text-secondary">Due amount</p>
                     <p className="text-xl font-semibold text-white">
-                      {formatCurrency(toNumber(highlightedPlan.installment_amount))}
+                      {formatCurrency(highlightedMetrics?.installment || toNumber(highlightedPlan.installment_amount))}
                     </p>
                     <p className="text-xs text-text-secondary">
                       {getDueState(highlightedPlan).label}

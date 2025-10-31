@@ -1,22 +1,7 @@
 // Database Types - matches Supabase schema
 
 export type DebtCategory = 'credit_card' | 'installment' | 'paylater' | 'loan' | 'insurance' | 'other';
-export type ExpenseCategory =
-  | 'food'
-  | 'transport'
-  | 'girlfriend'
-  | 'shopping'
-  | 'bills'
-  | 'other'
-  | 'salary'
-  | 'investments'
-  | 'gifts'
-  | 'subscriptions'
-  | 'health'
-  | 'entertainment'
-  | 'groceries'
-  | 'travel';
-
+export type ExpenseCategory = string;
 export type TransactionType = 'expense' | 'income' | 'transfer';
 export type TimeCategory = 'deep_work' | 'meetings' | 'learning' | 'ibadah' | 'girlfriend' | 'family' | 'exercise' | 'eating' | 'commute' | 'social_media' | 'entertainment' | 'sleep' | 'other';
 export type TaskPriority = 'high' | 'medium' | 'low';
@@ -24,6 +9,7 @@ export type TaskListType = 'today' | 'someday' | 'work' | 'personal' | 'grocerie
 export type PrayerName = 'subuh' | 'zohor' | 'asar' | 'maghrib' | 'isyak';
 export type PrayerStatus = 'on_time' | 'late' | 'missed';
 export type PrayerLocation = 'home' | 'office' | 'masjid_muadz' | 'other';
+export type CategoryType = 'expense' | 'income';
 
 // Finance System Types
 export type AccountType = 'savings' | 'checking' | 'credit_card' | 'bnpl' | 'ewallet';
@@ -81,6 +67,19 @@ export interface Expense {
   payment_method_id?: string;
   payment_channel?: string;
   counterparty_type?: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinanceCategory {
+  id: string;
+  user_id: string;
+  name: string;
+  slug: string;
+  category_type: CategoryType;
+  icon?: string;
+  color: string;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -185,6 +184,18 @@ export interface BNPL {
   updated_at: string;
 }
 
+export interface BNPLInstallment {
+  id: string;
+  bnpl_id: string;
+  sequence: number;
+  amount: number;
+  due_date?: string;
+  is_paid: boolean;
+  paid_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CreditCard {
   id: string;
   user_id: string;
@@ -259,10 +270,23 @@ export interface Database {
         Insert: Omit<PaymentMethod, 'id' | 'created_at'>;
         Update: Partial<Omit<PaymentMethod, 'id' | 'created_at'>>;
       };
+      finance_categories: {
+        Row: FinanceCategory;
+        Insert: Omit<FinanceCategory, 'id' | 'slug' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<FinanceCategory, 'id' | 'slug' | 'created_at' | 'updated_at'>>;
+      };
       bnpl: {
         Row: BNPL;
         Insert: Omit<BNPL, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<BNPL, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      bnpl_installments: {
+        Row: BNPLInstallment;
+        Insert: Omit<BNPLInstallment, 'id' | 'created_at' | 'updated_at' | 'is_paid'> & {
+          id?: string;
+          is_paid?: boolean;
+        };
+        Update: Partial<Omit<BNPLInstallment, 'id' | 'created_at' | 'updated_at'>>;
       };
       credit_cards: {
         Row: CreditCard;

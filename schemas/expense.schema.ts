@@ -21,9 +21,17 @@ export const expenseCategories = [
 
 export const expenseSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
+<<<<<<< ours
+<<<<<<< ours
   transaction_type: z.enum(transactionTypeEnum),
   category: z.enum(expenseCategories),
   item_name: z.string().min(1, 'Item name is required'),
+=======
+  category: z.string().min(1, 'Category is required'),
+>>>>>>> theirs
+=======
+  category: z.enum(['food', 'transport', 'girlfriend', 'shopping', 'bills', 'other']),
+>>>>>>> theirs
   merchant_name: z.string().max(255).optional(),
   description: z.string().optional(),
   date: z.string().or(z.date()),

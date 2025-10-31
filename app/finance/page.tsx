@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import type {
   Account,
   BNPL,
+  BNPLInstallment,
   CreditCard,
   Expense,
   PaymentMethod,
@@ -48,7 +49,7 @@ export default async function FinancePage() {
       .lte('date', new Date().toISOString().split('T')[0]),
     supabase
       .from('bnpl')
-      .select(`*, accounts:accounts(id, name, provider, account_type)`)
+      .select(`*, accounts:accounts(id, name, provider, account_type), installments:bnpl_installments(sequence, amount, is_paid, due_date)`)
       .eq('user_id', user.id)
       .eq('status', 'active'),
     supabase
@@ -58,6 +59,28 @@ export default async function FinancePage() {
       .eq('status', 'pending'),
   ]);
 
+  const bnplWithAccounts = (bnpl || []) as BNPLWithAccount[];
+  const bnplMetrics = new Map<
+    string,
+    { remainingBalance: number; nextAmount: number; nextDueDate: string | null }
+  >();
+
+  bnplWithAccounts.forEach((plan) => {
+    const schedule = (plan.installments ?? []).slice().sort((a, b) => a.sequence - b.sequence);
+    const remainingBalance = schedule
+      .filter((inst) => !inst.is_paid)
+      .reduce((sum, inst) => sum + Number(inst.amount ?? 0), 0);
+    const nextInstallment = schedule.find((inst) => !inst.is_paid);
+    const nextAmount =
+      nextInstallment !== undefined ? Number(nextInstallment.amount ?? 0) : Number(plan.installment_amount ?? 0);
+    const nextDueDate = nextInstallment?.due_date ?? plan.next_due_date ?? null;
+    bnplMetrics.set(plan.id, {
+      remainingBalance,
+      nextAmount,
+      nextDueDate,
+    });
+  });
+
   // Calculate financial overview
   const totalAvailable = accounts?.reduce((sum, acc) => {
     if (acc.account_type === 'savings' || acc.account_type === 'checking' || acc.account_type === 'ewallet') {
@@ -66,10 +89,14 @@ export default async function FinancePage() {
     return sum;
   }, 0) || 0;
 
-  const totalOwed = [
-    ...(bnpl?.map(b => b.total_amount - (b.installment_amount * b.installments_paid)) || []),
-    ...(creditCards?.map(c => c.total_amount - c.paid_amount) || [])
-  ].reduce((sum, amount) => sum + amount, 0);
+  const totalBnplOutstanding = bnplWithAccounts.reduce(
+    (sum, plan) => sum + (bnplMetrics.get(plan.id)?.remainingBalance ?? 0),
+    0
+  );
+  const totalCreditOutstanding =
+    creditCards?.reduce((sum, card) => sum + (card.total_amount - card.paid_amount), 0) || 0;
+
+  const totalOwed = totalBnplOutstanding + totalCreditOutstanding;
 
   const netWorth = totalAvailable - totalOwed;
 
@@ -86,11 +113,16 @@ export default async function FinancePage() {
   // Calculate next payday (assume end of month for now, can be configured later)
   const nextPayday = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-  const upcomingBNPL = bnpl?.filter(b => {
-    if (!b.next_due_date) return false;
-    const dueDate = new Date(b.next_due_date);
-    return dueDate >= today && dueDate <= nextWeek;
-  }) || [];
+  const upcomingBNPL = bnplWithAccounts
+    .map((plan) => ({
+      plan,
+      meta: bnplMetrics.get(plan.id),
+    }))
+    .filter(({ meta }) => {
+      if (!meta?.nextDueDate) return false;
+      const dueDate = new Date(meta.nextDueDate);
+      return dueDate >= today && dueDate <= nextWeek;
+    });
 
   const upcomingCC = creditCards?.filter(c => {
     const dueDate = new Date(c.due_date);
@@ -100,11 +132,14 @@ export default async function FinancePage() {
   const hasUpcoming = upcomingBNPL.length > 0 || upcomingCC.length > 0;
 
   // Calculate "Available to Spend" - payments due before next payday
-  const bnplDueBeforePayday = bnpl?.filter(b => {
-    if (!b.next_due_date) return false;
-    const dueDate = new Date(b.next_due_date);
-    return dueDate >= today && dueDate <= nextPayday;
-  }).reduce((sum, b) => sum + b.installment_amount, 0) || 0;
+  const bnplDueBeforePayday = bnplWithAccounts
+    .filter((plan) => {
+      const meta = bnplMetrics.get(plan.id);
+      if (!meta?.nextDueDate) return false;
+      const dueDate = new Date(meta.nextDueDate);
+      return dueDate >= today && dueDate <= nextPayday;
+    })
+    .reduce((sum, plan) => sum + (bnplMetrics.get(plan.id)?.nextAmount ?? 0), 0);
 
   const ccDueBeforePayday = creditCards?.filter(c => {
     const dueDate = new Date(c.due_date);
@@ -164,7 +199,7 @@ export default async function FinancePage() {
     accounts?: AccountSummary | null;
     payment_methods?: PaymentMethodSummary | null;
   };
-  type BNPLWithAccount = BNPL & { accounts?: AccountSummary | null };
+  type BNPLWithAccount = BNPL & { accounts?: AccountSummary | null; installments?: BNPLInstallment[] };
   type CreditCardWithAccount = CreditCard & { accounts?: AccountSummary | null };
 
   type CombinedTransaction = {
@@ -190,7 +225,6 @@ export default async function FinancePage() {
     });
 
   const expensesWithRelations = (expenses ?? []) as ExpenseWithRelations[];
-  const bnplWithAccounts = (bnpl ?? []) as BNPLWithAccount[];
   const creditWithAccounts = (creditCards ?? []) as CreditCardWithAccount[];
 
   const expenseTransactions: CombinedTransaction[] = expensesWithRelations
@@ -255,15 +289,22 @@ export default async function FinancePage() {
     .filter(Boolean) as CombinedTransaction[];
 
   const bnplTransactions: CombinedTransaction[] = bnplWithAccounts
-    .filter((plan) => plan.next_due_date)
     .map((plan) => {
-      const occurredAt = new Date(`${plan.next_due_date}T00:00:00`);
+      const meta = bnplMetrics.get(plan.id);
+      const dueDateString = meta?.nextDueDate ?? plan.next_due_date;
+      if (!dueDateString) return null;
+      const occurredAt = new Date(`${dueDateString}T00:00:00`);
       if (Number.isNaN(occurredAt.getTime())) {
         return null;
       }
 
+      const schedule = plan.installments ?? [];
+      const totalInstallments = schedule.length || plan.installments_total;
+      const paidInstallments =
+        schedule.length > 0 ? schedule.filter((inst) => inst.is_paid).length : plan.installments_paid;
+
       const subtitleParts = [
-        `Installment ${Math.min(plan.installments_paid + 1, plan.installments_total)} / ${plan.installments_total}`,
+        `Installment ${Math.min(paidInstallments + 1, totalInstallments)} / ${totalInstallments}`,
         plan.accounts?.name || plan.accounts?.provider,
       ].filter(Boolean);
 
@@ -272,7 +313,7 @@ export default async function FinancePage() {
         title: `🌀 ${plan.merchant}`,
         subtitle: subtitleParts.join(' • '),
         occurredAt,
-        amount: plan.installment_amount,
+        amount: meta?.nextAmount ?? plan.installment_amount,
         direction: 'outflow',
         type: 'bnpl',
         href: `/finance/bnpl/${plan.id}/edit`,
@@ -408,13 +449,18 @@ export default async function FinancePage() {
               <h3 className="text-lg font-semibold text-white">Upcoming Payments</h3>
             </div>
             <div className="space-y-2">
-              {upcomingBNPL.map((item) => {
-                const daysUntil = Math.ceil((new Date(item.next_due_date!).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              {upcomingBNPL.map(({ plan, meta }) => {
+                const dueDate = meta?.nextDueDate ? new Date(meta.nextDueDate) : null;
+                const daysUntil =
+                  dueDate !== null
+                    ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
                 return (
-                  <div key={item.id} className="flex justify-between items-center text-sm glass-light rounded-lg p-3">
-                    <span className="text-white">{item.merchant} - BNPL</span>
+                  <div key={plan.id} className="flex justify-between items-center text-sm glass-light rounded-lg p-3">
+                    <span className="text-white">{plan.merchant} - BNPL</span>
                     <span className="font-medium text-error">
-                      {formatCurrency(item.installment_amount)} • {daysUntil}d
+                      {formatCurrency(meta?.nextAmount ?? plan.installment_amount)} •{' '}
+                      {daysUntil !== null ? `${daysUntil}d` : '—'}
                     </span>
                   </div>
                 );

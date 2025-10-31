@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { expenseSchema, expenseCategories, transactionTypeEnum } from '@/schemas/expense.schema';
+import { expenseSchema, transactionTypeEnum } from '@/schemas/expense.schema';
 import { Button3D } from '@/components/ui/button-3d';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,11 +18,12 @@ import { GlassCard } from '@/components/ui/glass-card';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Calendar, CreditCard, Wallet2 } from 'lucide-react';
+import type { CategoryType } from '@/types/database.types';
 
 type TransactionFormState = {
   amount: string;
   transaction_type: (typeof transactionTypeEnum)[number];
-  category: (typeof expenseCategories)[number];
+  category: string;
   item_name: string;
   merchant_name: string;
   description: string;
@@ -46,6 +47,12 @@ type PaymentMethodOption = {
   id: string;
   method_type: string;
   label?: string;
+};
+
+type CategoryOption = {
+  name: string;
+  slug: string;
+  category_type: CategoryType;
 };
 
 export type TransactionFormProps = {
@@ -96,20 +103,13 @@ const typeMeta: Record<(typeof transactionTypeEnum)[number], { label: string; su
   transfer: { label: 'Transfer', subtitle: 'Moving between accounts' },
 };
 
-const categoryGroups = [
-  {
-    label: 'Spending',
-    options: ['food', 'transport', 'shopping', 'girlfriend', 'entertainment', 'groceries', 'travel', 'other'] as const,
-  },
-  {
-    label: 'Bills & Commitments',
-    options: ['bills', 'subscriptions', 'health'] as const,
-  },
-  {
-    label: 'Inflow',
-    options: ['salary', 'investments', 'gifts'] as const,
-  },
-];
+function normalizeCategoryName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 function getInitialTime(date?: string | null) {
   if (!date) return new Date().toISOString().slice(11, 16);
@@ -129,7 +129,7 @@ function buildInitialState(initialData?: TransactionFormProps['initialData']): T
   return {
     amount: initialData ? initialData.amount.toString() : '',
     transaction_type: (initialData?.transaction_type as TransactionFormState['transaction_type']) ?? 'expense',
-    category: (initialData?.category as TransactionFormState['category']) ?? 'food',
+    category: initialData?.category ?? 'food',
     item_name: initialData?.item_name ?? '',
     merchant_name: initialData?.merchant_name ?? '',
     description: initialData?.description ?? '',
@@ -148,6 +148,7 @@ export function TransactionForm({ mode, transactionId, initialData }: Transactio
   const [formState, setFormState] = useState<TransactionFormState>(() => buildInitialState(initialData));
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -156,6 +157,52 @@ export function TransactionForm({ mode, transactionId, initialData }: Transactio
   }, [initialData]);
 
   const supabase = useMemo(() => createClient(), []);
+  const derivedCategoryOptions = useMemo(() => {
+    const base = [...categoryOptions];
+
+    if (formState.category) {
+      const currentSlug = normalizeCategoryName(formState.category) || `custom-${formState.category.toLowerCase()}`;
+      if (!base.some((option) => option.slug === currentSlug)) {
+        base.push({
+          name: formState.category,
+          slug: currentSlug,
+          category_type: formState.transaction_type === 'income' ? 'income' : 'expense',
+        });
+      }
+    }
+
+    const seen = new Set<string>();
+    return base.filter((option) => {
+      const key = option.slug || normalizeCategoryName(option.name);
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [categoryOptions, formState.category, formState.transaction_type]);
+
+  const groupedCategories = useMemo(() => {
+    if (categoryOptions.length > 0) {
+      const expenseOptions = derivedCategoryOptions
+        .filter((option) => option.category_type === 'expense')
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const incomeOptions = derivedCategoryOptions
+        .filter((option) => option.category_type === 'income')
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const groups: { label: string; options: CategoryOption[] }[] = [];
+      if (expenseOptions.length > 0) {
+        groups.push({ label: 'Expense', options: expenseOptions });
+      }
+      if (incomeOptions.length > 0) {
+        groups.push({ label: 'Income', options: incomeOptions });
+      }
+      return groups;
+    }
+
+    return [];
+  }, [categoryOptions, derivedCategoryOptions]);
 
   const fetchAccounts = useCallback(async () => {
     const { data } = await supabase
@@ -166,6 +213,27 @@ export function TransactionForm({ mode, transactionId, initialData }: Transactio
 
     if (data) {
       setAccounts(data as AccountOption[]);
+    }
+  }, [supabase]);
+
+  const fetchCategories = useCallback(async () => {
+    const { data } = await supabase
+      .from('finance_categories')
+      .select('name, category_type, slug')
+      .order('category_type', { ascending: true })
+      .order('sort_order', { ascending: false })
+      .order('name', { ascending: true });
+
+    if (data && data.length > 0) {
+      setCategoryOptions(
+        (data as { name: string; category_type: CategoryType; slug?: string | null }[]).map((item) => ({
+          name: item.name,
+          slug: item.slug ?? normalizeCategoryName(item.name),
+          category_type: item.category_type,
+        }))
+      );
+    } else {
+      setCategoryOptions([]);
     }
   }, [supabase]);
 
@@ -187,6 +255,10 @@ export function TransactionForm({ mode, transactionId, initialData }: Transactio
   useEffect(() => {
     fetchAccounts();
   }, [fetchAccounts]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   useEffect(() => {
     if (formState.account_id) {
@@ -321,18 +393,18 @@ export function TransactionForm({ mode, transactionId, initialData }: Transactio
             <Label htmlFor="category">Category</Label>
             <Select
               value={formState.category}
-              onValueChange={(value) => setFormState((prev) => ({ ...prev, category: value as TransactionFormState['category'] }))}
+              onValueChange={(value) => setFormState((prev) => ({ ...prev, category: value }))}
             >
               <SelectTrigger id="category">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categoryGroups.map((group) => (
+                {groupedCategories.map((group) => (
                   <div key={group.label}>
                     <p className="px-3 pt-2 text-xs font-semibold uppercase text-text-secondary">{group.label}</p>
                     {group.options.map((option) => (
-                      <SelectItem key={option} value={option} className="capitalize">
-                        {option.replace('_', ' ')}
+                      <SelectItem key={option.slug} value={option.name} className="capitalize">
+                        {option.name.replace(/_/g, ' ')}
                       </SelectItem>
                     ))}
                   </div>
