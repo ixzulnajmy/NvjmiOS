@@ -1,14 +1,14 @@
 {
-  "name": "NvjmiOS - Life Command Center",
-  "short_name": "NvjmiOS",
-  "description": "Personal life-saving command center for financial, spiritual, and time management",
+  "name": "NvjmiOS",
+  "short_name": "JARVIS",
+  "description": "Personal command center for finance, ibadah, and life management",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen"],
-  "background_color": "#ffffff",
+  "background_color": "#000000",
   "theme_color": "#000000",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -40,10 +40,10 @@
   "lang": "en-MY",
   "shortcuts": [
     {
-      "name": "Add Expense",
-      "short_name": "Expense",
-      "description": "Quickly log an expense",
-      "url": "/dashboard/finance/expenses?action=add",
+      "name": "Add Transaction",
+      "short_name": "Add",
+      "description": "Quickly log a transaction",
+      "url": "/finance",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     },
     {

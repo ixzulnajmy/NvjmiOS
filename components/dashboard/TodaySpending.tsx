@@ -2,26 +2,24 @@ import { createClient } from '@/lib/supabase/server';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/lib/utils';
+import { HARDCODED_USER_ID, DEFAULT_DAILY_BUDGET } from '@/lib/constants';
 import { Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 
-interface TodaySpendingProps {
-  userId: string;
-}
-
-export async function TodaySpending({ userId }: TodaySpendingProps) {
+export async function TodaySpending() {
   const supabase = await createClient();
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  // Fetch today's expenses
+  // Fetch today's expenses using hardcoded user_id
   const { data: expenses } = await supabase
     .from('expenses')
     .select('*')
-    .eq('user_id', userId)
-    .eq('date', today);
+    .eq('user_id', HARDCODED_USER_ID)
+    .eq('date', today)
+    .eq('transaction_type', 'expense');
 
   const totalSpent = expenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
-  const dailyBudget = 60; // RM 60 daily budget
+  const dailyBudget = DEFAULT_DAILY_BUDGET;
   const percentageSpent = (totalSpent / dailyBudget) * 100;
 
   // Group by category

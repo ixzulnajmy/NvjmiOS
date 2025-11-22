@@ -4,26 +4,21 @@ import { CircleBackButton } from '@/components/ui/circle-back-button';
 import { TransactionForm } from '@/components/finance/TransactionForm';
 import { GlassCard } from '@/components/ui/glass-card';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { HARDCODED_USER_ID } from '@/lib/constants';
 
 interface EditTransactionPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function EditTransactionPage({ params }: EditTransactionPageProps) {
+  const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return null;
-  }
 
   const { data: expense } = await supabase
     .from('expenses')
     .select('*')
-    .eq('id', params.id)
-    .eq('user_id', user.id)
+    .eq('id', id)
+    .eq('user_id', HARDCODED_USER_ID)
     .single();
 
   if (!expense) {

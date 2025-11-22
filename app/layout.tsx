@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'NvjmiOS - Life Command Center',
-  description: 'Personal life-saving command center for financial, spiritual, and time management',
+  title: 'NvjmiOS',
+  description: 'Personal command center for finance, ibadah, and life management',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'NvjmiOS',
+    statusBarStyle: 'black-translucent',
+    title: 'JARVIS',
     startupImage: [
       {
         url: '/icon-512x512.png',
@@ -48,8 +48,8 @@ export default function RootLayout({
         {/* PWA Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="NvjmiOS" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="JARVIS" />
 
         {/* Apple Touch Icons */}
         <link rel="apple-touch-icon" href="/icon-192x192.png" sizes="192x192" />

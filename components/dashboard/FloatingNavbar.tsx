@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LineChart, Clock, CheckSquare, Sparkles } from 'lucide-react';
+import { Home, LineChart, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
+// Simplified navigation - 3 tabs only
 const navItems = [
   {
     name: 'Home',
@@ -16,16 +17,6 @@ const navItems = [
     name: 'Finance',
     href: '/finance',
     icon: LineChart,
-  },
-  {
-    name: 'Time',
-    href: '/dashboard/time',
-    icon: Clock,
-  },
-  {
-    name: 'Tasks',
-    href: '/dashboard/tasks',
-    icon: CheckSquare,
   },
   {
     name: 'Ibadah',
@@ -46,7 +37,7 @@ export function FloatingNavbar() {
   return (
     <nav className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4 sm:px-6">
       <motion.div
-        className="glass-navbar pointer-events-auto relative flex w-full max-w-xl items-center justify-between gap-1 rounded-[28px] border border-white/10 bg-white/10 px-2 py-2"
+        className="glass-navbar pointer-events-auto relative flex w-full max-w-sm items-center justify-between gap-1 rounded-[28px] border border-white/10 bg-white/10 px-3 py-2"
         initial={{ y: 96, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 210, damping: 26 }}

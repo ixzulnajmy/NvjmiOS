@@ -1,17 +1,70 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { FloatingNavbar } from '@/components/dashboard/FloatingNavbar';
+'use client';
 
-export default async function DashboardLayout({
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { FloatingNavbar } from '@/components/dashboard/FloatingNavbar';
+import { isAppLocked, hasPINSetup, shouldAutoLock, lockApp, refreshUnlockTimer } from '@/utils/pin-security';
+
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const router = useRouter();
+  const [isReady, setIsReady] = useState(false);
 
-  if (!user) {
-    redirect('/auth/login');
+  useEffect(() => {
+    // Check if app is locked
+    const checkLockState = () => {
+      if (!hasPINSetup()) {
+        router.replace('/unlock?setup=true');
+        return;
+      }
+
+      if (isAppLocked() || shouldAutoLock()) {
+        if (shouldAutoLock()) {
+          lockApp();
+        }
+        router.replace('/unlock');
+        return;
+      }
+
+      setIsReady(true);
+    };
+
+    checkLockState();
+
+    // Refresh unlock timer on user activity
+    const handleActivity = () => {
+      refreshUnlockTimer();
+    };
+
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('touchstart', handleActivity);
+
+    // Check for auto-lock periodically
+    const interval = setInterval(() => {
+      if (shouldAutoLock()) {
+        lockApp();
+        router.replace('/unlock');
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+      clearInterval(interval);
+    };
+  }, [router]);
+
+  if (!isReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center ios-liquid-bg">
+        <div className="liquid-backdrop" />
+      </div>
+    );
   }
 
   return (

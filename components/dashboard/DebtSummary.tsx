@@ -2,20 +2,17 @@ import { createClient } from '@/lib/supabase/server';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/lib/utils';
+import { HARDCODED_USER_ID } from '@/lib/constants';
 import { AlertCircle, TrendingDown } from 'lucide-react';
 
-interface DebtSummaryProps {
-  userId: string;
-}
-
-export async function DebtSummary({ userId }: DebtSummaryProps) {
+export async function DebtSummary() {
   const supabase = await createClient();
 
-  // Fetch all debts
+  // Fetch all debts using hardcoded user_id
   const { data: debts } = await supabase
     .from('debts')
     .select('*')
-    .eq('user_id', userId);
+    .eq('user_id', HARDCODED_USER_ID);
 
   const totalDebt = debts?.reduce((sum, debt) => sum + Number(debt.current_balance), 0) || 0;
   const totalOriginal = debts?.reduce((sum, debt) => sum + Number(debt.total_amount), 0) || 0;

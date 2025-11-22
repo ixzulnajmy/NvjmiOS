@@ -1,12 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { HARDCODED_USER_ID } from '@/lib/constants';
 import { Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface PrayerStatusProps {
-  userId: string;
-}
 
 const PRAYER_NAMES = [
   { name: 'subuh', label: 'Subuh', time: '5:45 AM' },
@@ -16,15 +13,15 @@ const PRAYER_NAMES = [
   { name: 'isyak', label: 'Isyak', time: '8:30 PM' },
 ];
 
-export async function PrayerStatus({ userId }: PrayerStatusProps) {
+export async function PrayerStatus() {
   const supabase = await createClient();
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  // Fetch today's prayers
+  // Fetch today's prayers using hardcoded user_id
   const { data: prayers } = await supabase
     .from('prayers')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', HARDCODED_USER_ID)
     .eq('prayer_date', today);
 
   const prayerMap = new Map(prayers?.map(p => [p.prayer_name, p]) || []);

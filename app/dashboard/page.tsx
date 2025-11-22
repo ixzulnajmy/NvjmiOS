@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server';
 import { WeddingCountdown } from '@/components/dashboard/WeddingCountdown';
 import { DebtSummary } from '@/components/dashboard/DebtSummary';
 import { PrayerStatus } from '@/components/dashboard/PrayerStatus';
@@ -9,13 +8,6 @@ import { getGreeting, formatDate } from '@/lib/utils';
 import { Clock, Sparkles } from 'lucide-react';
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return null;
-  }
-
   const now = new Date();
   const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now
     .getMinutes()
@@ -63,13 +55,13 @@ export default async function DashboardPage() {
       <WeddingCountdown />
 
       {/* Debt Summary */}
-      <DebtSummary userId={user.id} />
+      <DebtSummary />
 
       {/* Prayer Status for Today */}
-      <PrayerStatus userId={user.id} />
+      <PrayerStatus />
 
       {/* Spending for Today */}
-      <TodaySpending userId={user.id} />
+      <TodaySpending />
     </div>
   );
 }

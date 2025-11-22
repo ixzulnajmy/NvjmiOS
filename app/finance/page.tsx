@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/glass-card';
-import { CircleBackButton } from '@/components/ui/circle-back-button';
-import { FinanceQuickActions } from '@/components/finance/FinanceQuickActions';
-import { Button3D } from '@/components/ui/button-3d';
 import { Progress } from '@/components/ui/progress';
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrency } from '@/lib/utils';
+import { HARDCODED_USER_ID, DEFAULT_MONTHLY_BUDGET, CATEGORY_EMOJIS, PAYMENT_CHANNEL_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { FloatingAddButton } from '@/components/finance/FloatingAddButton';
 import type {
   Account,
   BNPL,
@@ -16,26 +15,43 @@ import type {
 } from '@/types/database.types';
 import {
   AlertCircle,
-  ArrowUpRight,
   TrendingUp,
+  ChevronRight,
 } from 'lucide-react';
+
+type AccountSummary = Pick<Account, 'id' | 'name' | 'provider' | 'account_type'>;
+type PaymentMethodSummary = Pick<PaymentMethod, 'id' | 'method_type'>;
+type ExpenseWithRelations = Expense & {
+  accounts?: AccountSummary | null;
+  payment_methods?: PaymentMethodSummary | null;
+};
+type BNPLWithAccount = BNPL & { accounts?: AccountSummary | null; installments?: BNPLInstallment[] };
+type CreditCardWithAccount = CreditCard & { accounts?: AccountSummary | null };
+
+type CombinedTransaction = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  occurredAt: Date;
+  amount: number;
+  direction: 'inflow' | 'outflow' | 'neutral';
+  type: 'expense' | 'income' | 'transfer' | 'bnpl' | 'credit';
+  href: string;
+  accent: string;
+  meta?: string;
+};
 
 export default async function FinancePage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return null;
-  }
-
-  // Fetch all financial data
+  // Fetch all financial data using hardcoded user_id
   const [
     { data: accounts },
     { data: expenses },
     { data: bnpl },
     { data: creditCards },
   ] = await Promise.all([
-    supabase.from('accounts').select('*').eq('user_id', user.id).eq('is_active', true),
+    supabase.from('accounts').select('*').eq('user_id', HARDCODED_USER_ID).eq('is_active', true),
     supabase
       .from('expenses')
       .select(
@@ -44,18 +60,18 @@ export default async function FinancePage() {
         payment_methods:payment_methods(id, method_type)
       `
       )
-      .eq('user_id', user.id)
+      .eq('user_id', HARDCODED_USER_ID)
       .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
       .lte('date', new Date().toISOString().split('T')[0]),
     supabase
       .from('bnpl')
       .select(`*, accounts:accounts(id, name, provider, account_type), installments:bnpl_installments(sequence, amount, is_paid, due_date)`)
-      .eq('user_id', user.id)
+      .eq('user_id', HARDCODED_USER_ID)
       .eq('status', 'active'),
     supabase
       .from('credit_cards')
       .select(`*, accounts:accounts(id, name, provider, account_type)`)
-      .eq('user_id', user.id)
+      .eq('user_id', HARDCODED_USER_ID)
       .eq('status', 'pending'),
   ]);
 
@@ -96,13 +112,9 @@ export default async function FinancePage() {
   const totalCreditOutstanding =
     creditCards?.reduce((sum, card) => sum + (card.total_amount - card.paid_amount), 0) || 0;
 
-  const totalOwed = totalBnplOutstanding + totalCreditOutstanding;
-
-  const netWorth = totalAvailable - totalOwed;
-
   // This month spending
-  const thisMonthSpent = expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
-  const monthlyBudget = 3000; // TODO: Get from user settings
+  const thisMonthSpent = expenses?.filter(exp => exp.transaction_type === 'expense').reduce((sum, exp) => sum + exp.amount, 0) || 0;
+  const monthlyBudget = DEFAULT_MONTHLY_BUDGET;
   const spendingPercentage = (thisMonthSpent / monthlyBudget) * 100;
 
   // Upcoming payments (next 7 days)
@@ -110,7 +122,7 @@ export default async function FinancePage() {
   const nextWeek = new Date(today);
   nextWeek.setDate(today.getDate() + 7);
 
-  // Calculate next payday (assume end of month for now, can be configured later)
+  // Calculate next payday (assume end of month for now)
   const nextPayday = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
   const upcomingBNPL = bnplWithAccounts
@@ -146,73 +158,14 @@ export default async function FinancePage() {
     return dueDate >= today && dueDate <= nextPayday;
   }).reduce((sum, c) => sum + c.minimum_payment, 0) || 0;
 
-  const availableToSpend = totalAvailable - bnplDueBeforePayday - ccDueBeforePayday;
+  const totalDueBeforePayday = bnplDueBeforePayday + ccDueBeforePayday;
+  const availableToSpend = totalAvailable - totalDueBeforePayday;
 
   // Color coding for available to spend
   const getAvailableColor = () => {
-    if (availableToSpend < 0) return 'text-error';
+    if (availableToSpend < 0) return 'text-red-400';
     if (availableToSpend < 500) return 'text-orange-400';
-    return 'text-success';
-  };
-
-  const paymentMethodLabels: Record<string, string> = {
-    qr_code: 'QR Code',
-    apple_pay_tap: 'Apple Pay • NFC',
-    physical_card_tap: 'Physical Card',
-    apple_pay_online: 'Apple Pay • Web',
-    bank_transfer: 'Bank Transfer',
-    fpx: 'FPX',
-    cash: 'Cash',
-  };
-
-  const paymentChannelLabels: Record<string, string> = {
-    mae_qr: 'MAE QR',
-    apple_pay_nfc: 'Apple Pay • NFC',
-    uob_one_credit: 'UOB One Credit Card',
-    apple_pay_web: 'Apple Pay • Web',
-    fpx_maybank2u: 'FPX Maybank2u',
-    bank_transfer: 'Bank Transfer',
-    cash: 'Cash',
-    other: 'Other',
-  };
-
-  const categoryEmojis: Record<string, string> = {
-    food: '🍜',
-    transport: '🛵',
-    girlfriend: '💝',
-    shopping: '🛍️',
-    bills: '🧾',
-    other: '🪄',
-    salary: '💼',
-    investments: '📈',
-    gifts: '🎁',
-    subscriptions: '🔁',
-    health: '💊',
-    entertainment: '🎬',
-    groceries: '🛒',
-    travel: '✈️',
-  };
-
-  type AccountSummary = Pick<Account, 'id' | 'name' | 'provider' | 'account_type'>;
-  type PaymentMethodSummary = Pick<PaymentMethod, 'id' | 'method_type'>;
-  type ExpenseWithRelations = Expense & {
-    accounts?: AccountSummary | null;
-    payment_methods?: PaymentMethodSummary | null;
-  };
-  type BNPLWithAccount = BNPL & { accounts?: AccountSummary | null; installments?: BNPLInstallment[] };
-  type CreditCardWithAccount = CreditCard & { accounts?: AccountSummary | null };
-
-  type CombinedTransaction = {
-    id: string;
-    title: string;
-    subtitle?: string;
-    occurredAt: Date;
-    amount: number;
-    direction: 'inflow' | 'outflow' | 'neutral';
-    type: 'expense' | 'income' | 'transfer' | 'bnpl' | 'credit';
-    href: string;
-    accent: string;
-    meta?: string;
+    return 'text-green-400';
   };
 
   const toShortDate = (date: Date) =>
@@ -237,7 +190,7 @@ export default async function FinancePage() {
         return null;
       }
 
-      const emoji = categoryEmojis[expense.category] ?? '💳';
+      const emoji = CATEGORY_EMOJIS[expense.category] ?? '💳';
       const baseTitle = expense.item_name || expense.merchant_name || 'Transaction';
       const title = `${emoji} ${baseTitle}`;
 
@@ -252,10 +205,10 @@ export default async function FinancePage() {
           ? expense.merchant_name
           : undefined,
         expense.payment_channel
-          ? paymentChannelLabels[expense.payment_channel] || expense.payment_channel
+          ? PAYMENT_CHANNEL_LABELS[expense.payment_channel] || expense.payment_channel
           : undefined,
         expense.payment_methods?.method_type
-          ? paymentMethodLabels[expense.payment_methods.method_type] || expense.payment_methods.method_type
+          ? PAYMENT_METHOD_LABELS[expense.payment_methods.method_type] || expense.payment_methods.method_type
           : undefined,
         expense.accounts?.name || expense.accounts?.provider,
       ].filter(Boolean);
@@ -279,10 +232,10 @@ export default async function FinancePage() {
         href: `/finance/transactions/${expense.id}/edit`,
         accent:
           expense.transaction_type === 'income'
-            ? 'bg-success/20 text-success'
+            ? 'bg-green-500/20 text-green-400'
             : expense.transaction_type === 'transfer'
             ? 'bg-blue-400/20 text-blue-200'
-            : 'bg-error/15 text-error',
+            : 'bg-red-500/15 text-red-400',
         meta: `${toShortDate(occurredAt)} • ${toShortTime(occurredAt)}`,
       } satisfies CombinedTransaction;
     })
@@ -353,7 +306,7 @@ export default async function FinancePage() {
   const recentTransactions = [...expenseTransactions, ...bnplTransactions, ...creditTransactions]
     .filter((transaction) => transaction.occurredAt)
     .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
-    .slice(0, 6);
+    .slice(0, 5);
 
   const typeLabels: Record<CombinedTransaction['type'], string> = {
     expense: 'Expense',
@@ -365,157 +318,115 @@ export default async function FinancePage() {
 
   return (
     <div className="space-y-6 pb-6">
-      {/* Header with Back Button */}
-      <div className="flex items-center gap-4 pt-4">
-        <CircleBackButton />
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold text-white">Finance</h1>
-          <p className="text-sm text-text-secondary">Your complete financial picture</p>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <FinanceQuickActions />
-
-      {/* Hero Balance Section with Available to Spend */}
-      <GlassCard variant="strong" className="bg-gradient-to-br from-green-900/20 to-blue-900/20">
-        <div className="space-y-4">
-          {/* Available to Spend - Primary Metric */}
-          <div className="text-center pb-4 border-b border-white/10">
-            <p className="text-sm text-text-secondary mb-1">Available to Spend</p>
-            <h2 className={`text-4xl font-bold ${getAvailableColor()}`}>
-              {formatCurrency(availableToSpend)}
-            </h2>
-            <p className="text-xs text-text-secondary mt-2">
-              After {formatCurrency(bnplDueBeforePayday + ccDueBeforePayday)} payments due before next payday
-            </p>
-          </div>
-
-          {/* Net Worth */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-text-secondary">Net Worth</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className={`text-2xl font-bold ${netWorth >= 0 ? 'text-success' : 'text-error'}`}>
-                  {formatCurrency(netWorth)}
-                </h3>
-                <div className="flex items-center gap-1 text-success text-sm">
-                  <ArrowUpRight className="h-4 w-4" />
-                  <span>+5.5%</span>
-                </div>
-              </div>
-              <p className="text-xs text-text-secondary mt-1">Last Week</p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Link href="/finance/transactions/new" className="flex-1">
-              <Button3D variant="primary" className="w-full">
-                Deposit
-              </Button3D>
-            </Link>
-            <Link href="/finance/expenses?action=add" className="flex-1">
-              <Button3D variant="secondary" className="w-full">
-                Send
-              </Button3D>
-            </Link>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
-            <div>
-              <p className="text-xs text-text-secondary">In Accounts</p>
-              <p className="text-xl font-bold text-white">
-                {formatCurrency(totalAvailable)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-text-secondary">Total Owed</p>
-              <p className="text-xl font-bold text-error">
-                {formatCurrency(totalOwed)}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Available to Spend - Hero Card */}
+      <GlassCard variant="strong" className="text-center">
+        <p className="text-sm text-white/60 mb-2">Available to Spend</p>
+        <h1 className={`text-5xl font-bold tracking-tight ${getAvailableColor()}`}>
+          {formatCurrency(availableToSpend)}
+        </h1>
+        {totalDueBeforePayday > 0 && (
+          <p className="text-sm text-white/50 mt-3">
+            (After {formatCurrency(totalDueBeforePayday)} due today)
+          </p>
+        )}
       </GlassCard>
 
-      {/* Upcoming Payments Alert */}
+      {/* This Month Spending */}
+      <GlassCard variant="strong">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="h-5 w-5 text-white/80" />
+          <h3 className="text-lg font-semibold text-white">This Month</h3>
+        </div>
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-2xl font-bold text-white">
+            {formatCurrency(thisMonthSpent)}
+          </span>
+          <span className="text-sm text-white/60">
+            / {formatCurrency(monthlyBudget)}
+          </span>
+        </div>
+        <Progress
+          value={Math.min(spendingPercentage, 100)}
+          className="h-3 bg-white/10"
+        />
+        <p className="text-sm text-white/50 mt-2">
+          {Math.round(spendingPercentage)}% of budget used
+        </p>
+      </GlassCard>
+
+      {/* BNPL Due Next 7 Days */}
       {hasUpcoming && (
-        <GlassCard variant="strong" className="bg-gradient-to-br from-orange-900/20 to-red-900/20">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-error" />
-              <h3 className="text-lg font-semibold text-white">Upcoming Payments</h3>
-            </div>
-            <div className="space-y-2">
-              {upcomingBNPL.map(({ plan, meta }) => {
-                const dueDate = meta?.nextDueDate ? new Date(meta.nextDueDate) : null;
-                const daysUntil =
-                  dueDate !== null
-                    ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-                    : null;
-                return (
-                  <div key={plan.id} className="flex justify-between items-center text-sm glass-light rounded-lg p-3">
-                    <span className="text-white">{plan.merchant} - BNPL</span>
-                    <span className="font-medium text-error">
-                      {formatCurrency(meta?.nextAmount ?? plan.installment_amount)} •{' '}
-                      {daysUntil !== null ? `${daysUntil}d` : '—'}
-                    </span>
+        <GlassCard variant="strong">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="h-5 w-5 text-orange-400" />
+            <h3 className="text-lg font-semibold text-white">BNPL Due Next 7 Days</h3>
+          </div>
+          <div className="space-y-2">
+            {upcomingBNPL.map(({ plan, meta }) => {
+              const dueDate = meta?.nextDueDate ? new Date(meta.nextDueDate) : null;
+              const daysUntil =
+                dueDate !== null
+                  ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                  : null;
+              return (
+                <Link
+                  key={plan.id}
+                  href={`/finance/bnpl/${plan.id}/edit`}
+                  className="flex justify-between items-center glass-light rounded-xl p-4 hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <ChevronRight className="h-4 w-4 text-white/40" />
+                    <span className="text-white font-medium">{plan.merchant}</span>
                   </div>
-                );
-              })}
-              {upcomingCC.map((card) => {
-                const daysUntil = Math.ceil((new Date(card.due_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                return (
-                  <div key={card.id} className="flex justify-between items-center text-sm glass-light rounded-lg p-3">
-                    <span className="text-white">Credit Card Payment</span>
-                    <span className="font-medium text-error">
-                      {formatCurrency(card.minimum_payment)} • {daysUntil}d
-                    </span>
+                  <span className="font-semibold text-orange-400">
+                    {formatCurrency(meta?.nextAmount ?? plan.installment_amount)}
+                    {daysUntil !== null && (
+                      <span className="text-white/50 text-sm ml-2">
+                        {daysUntil === 0 ? 'Today' : `${daysUntil}d`}
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              );
+            })}
+            {upcomingCC.map((card) => {
+              const daysUntil = Math.ceil((new Date(card.due_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              return (
+                <Link
+                  key={card.id}
+                  href="/finance/credit-cards"
+                  className="flex justify-between items-center glass-light rounded-xl p-4 hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <ChevronRight className="h-4 w-4 text-white/40" />
+                    <span className="text-white font-medium">Credit Card</span>
                   </div>
-                );
-              })}
-            </div>
+                  <span className="font-semibold text-orange-400">
+                    {formatCurrency(card.minimum_payment)}
+                    <span className="text-white/50 text-sm ml-2">
+                      {daysUntil === 0 ? 'Today' : `${daysUntil}d`}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </GlassCard>
       )}
 
-      {/* This Month Spending */}
-      <GlassCard variant="strong">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-white" />
-            <h3 className="text-lg font-semibold text-white">This Month</h3>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-text-secondary">Spent</span>
-            <span className="text-lg font-bold text-white">
-              {formatCurrency(thisMonthSpent)} / {formatCurrency(monthlyBudget)}
-            </span>
-          </div>
-          <Progress value={Math.min(spendingPercentage, 100)} className="h-3 bg-card-elevated" />
-          {spendingPercentage > 100 && (
-            <p className="text-sm text-error font-medium">
-              Over budget by {formatCurrency(thisMonthSpent - monthlyBudget)}
-            </p>
-          )}
-        </div>
-      </GlassCard>
-
       {/* Recent Transactions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
-          <Link href="/finance/transactions" className="text-xs text-text-secondary hover:text-white transition-colors">
-            See more →
+          <h3 className="text-lg font-semibold text-white">Recent</h3>
+          <Link href="/finance/transactions" className="text-sm text-white/50 hover:text-white transition-colors">
+            See all →
           </Link>
         </div>
         <GlassCard variant="strong" className="p-0" hover={false}>
           <div className="divide-y divide-white/5">
             {recentTransactions.length === 0 ? (
-              <div className="px-5 py-6 text-sm text-text-secondary">
-                No activity logged yet. Start by adding a transaction, BNPL plan, or credit payment.
+              <div className="px-5 py-8 text-center text-white/50">
+                No transactions yet. Tap + to add one.
               </div>
             ) : (
               recentTransactions.map((transaction) => {
@@ -527,7 +438,7 @@ export default async function FinancePage() {
                   <Link
                     key={transaction.id}
                     href={transaction.href}
-                    className="flex items-center gap-4 px-5 py-4 transition-colors duration-300 hover:bg-white/5"
+                    className="flex items-center gap-4 px-5 py-4 transition-colors duration-200 hover:bg-white/5"
                   >
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -535,22 +446,19 @@ export default async function FinancePage() {
                           {transaction.title}
                         </span>
                         <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${transaction.accent}`}
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${transaction.accent}`}
                         >
                           {typeLabels[transaction.type]}
                         </span>
                       </div>
-                      {transaction.subtitle && (
-                        <p className="text-xs text-text-secondary line-clamp-1">{transaction.subtitle}</p>
-                      )}
                       {transaction.meta && (
-                        <p className="text-xs text-text-tertiary">{transaction.meta}</p>
+                        <p className="text-xs text-white/40">{transaction.meta}</p>
                       )}
                     </div>
                     <div className="text-right">
                       <p
                         className={`text-base font-semibold ${
-                          isNeutral ? 'text-blue-200' : isInflow ? 'text-success' : 'text-white'
+                          isNeutral ? 'text-blue-200' : isInflow ? 'text-green-400' : 'text-white'
                         }`}
                       >
                         {isNeutral ? amountLabel : `${isInflow ? '+' : '−'}${amountLabel}`}
@@ -563,6 +471,9 @@ export default async function FinancePage() {
           </div>
         </GlassCard>
       </div>
+
+      {/* Floating Add Button */}
+      <FloatingAddButton />
     </div>
   );
 }
